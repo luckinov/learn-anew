@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,17 +12,11 @@ const outDir = join(root, 'release');
 const pages = [
   ['states-of-matter/index.html', '固液气物态变化，平面演示'],
   ['states-of-matter/3d.html', '固液气物态变化，三维演示，打开时需要联网'],
-  ['sorting-visualizer/index.html', '几种常见排序算法的过程'],
-  ['fractal/index.html', '拖动、缩放，看分形怎么长出来'],
-  ['svg-demo/index.html', '用 SVG 画出来的几个小例子'],
 ];
 
 const titles = {
   'states-of-matter/index.html': '物态变化 · 2D',
   'states-of-matter/3d.html': '物态变化 · 3D',
-  'sorting-visualizer/index.html': '排序算法',
-  'fractal/index.html': '无限分形',
-  'svg-demo/index.html': 'SVG 演示',
 };
 
 // 跟 states-of-matter/build.mjs 同一套保守选项：字符串会打乱，但每帧的物理循环不做控制流平坦化。
@@ -234,19 +228,18 @@ await writeFile(join(outDir, 'index.html'), indexHtml);
 await writeFile(join(outDir, '使用说明.txt'), readme);
 await writeFile(join(outDir, '.nojekyll'), '');
 
+const voiceSrc = join(root, 'states-of-matter/voice');
+await cp(voiceSrc, join(outDir, 'states-of-matter/voice'), { recursive: true });
+const manifest = JSON.parse(await readFile(join(voiceSrc, 'manifest.json'), 'utf8'));
+if (!manifest.version || !Array.isArray(manifest.lines) || manifest.lines.length === 0) {
+  throw new Error('states-of-matter/voice/manifest.json 不是有效的讲解清单');
+}
+
 for (const [rel, html] of built) await checkSyntax(rel, html);
 
-const fractal = built.get('fractal/index.html');
-if (!fractal.includes('id="vs"') || !fractal.includes('gl_Position') || !fractal.includes('id="fs"')) {
-  throw new Error('分形页的着色器被破坏了');
-}
 const matter3d = built.get('states-of-matter/3d.html');
 if (!/from["']three["']/.test(matter3d) || !matter3d.includes('__three3d')) {
   throw new Error('3D 页的模块引用或启动标记丢失了');
-}
-const sorting = built.get('sorting-visualizer/index.html');
-for (const name of ['setMode', 'startSort', 'generateNewArray']) {
-  if (!sorting.includes(name)) throw new Error(`排序页按钮函数 ${name} 丢失了`);
 }
 
 console.log('release/ 已生成');

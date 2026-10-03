@@ -9,18 +9,9 @@
 - 在线看：<https://luckinov.github.io/learn-anew/>
 - 下载到电脑：打开 [Releases](https://github.com/luckinov/learn-anew/releases/latest)，下载 `learn-anew-obfuscated.zip`，解压后用浏览器打开里面的 `index.html`
 
-「物态变化 · 3D」第一次打开需要联网。
+「物态变化 · 3D」第一次打开需要联网。讲解语音已经打在压缩包里，解压后可以离线听。
 
-## 目录
-
-| 目录 | 内容 |
-|---|---|
-| `states-of-matter/` | 固液气物态变化。`index.html` 是 2D 版，`3d.html` 是 3D 版 |
-| `sorting-visualizer/` | 排序算法可视化 |
-| `fractal/` | 无限分形探索器 |
-| `svg-demo/` | SVG 能力演示 |
-
-仓库里这些文件是原始源码。上面的网页和 Release 压缩包是混淆后的分享版，方便别人打开，不方便直接对照着读代码。
+对外只发布 `states-of-matter/`：`index.html` 是 2D 版，`3d.html` 是 3D 版。仓库里是原始源码，网页和 Release 压缩包是混淆后的分享版。
 
 ## 重新打包
 
