@@ -10,8 +10,12 @@ const root = dirname(fileURLToPath(import.meta.url));
 const outDir = join(root, 'release');
 
 const pages = [
+  ['states-of-matter/3d.html', '固液气物态变化，三维演示。第一次打开需要联网'],
+];
+
+// 平面版不放到在线页面上，只放进下载压缩包。
+const downloadOnly = [
   ['states-of-matter/index.html', '固液气物态变化，平面演示'],
-  ['states-of-matter/3d.html', '固液气物态变化，三维演示，打开时需要联网'],
 ];
 
 const titles = {
@@ -166,13 +170,13 @@ function landingPage() {
 <body>
 <main>
   <h1>讲解动画</h1>
-  <p class="lead">用浏览器打开就行，不用安装别的软件。点下面任意一个开始看。</p>
+  <p class="lead">用浏览器打开就行，不用安装别的软件。点下面开始看三维演示。</p>
   <div class="cards">
 ${cards}
   </div>
   <footer>
-    <p>「物态变化 · 3D」第一次打开需要联网。</p>
-    <p>想保存到自己电脑：到 <a href="https://github.com/luckinov/learn-anew/releases/latest">下载页</a> 下载压缩包，解压后双击 <code>index.html</code>。</p>
+    <p>第一次打开需要联网，三维组件下载完就能看。</p>
+    <p>想保存到自己电脑：到 <a href="https://github.com/luckinov/learn-anew/releases/latest">下载页</a> 下载压缩包，解压后双击 <code>index.html</code>。平面版在压缩包的 <code>states-of-matter/index.html</code>，在线页面不放。</p>
   </footer>
 </main>
 </body>
@@ -186,6 +190,7 @@ const readme = `learn-anew 讲解动画
 建议使用 Chrome、Edge 或 Safari。
 
 「物态变化 · 3D」需要联网，第一次打开会从网上加载三维图形库。
+平面版在 states-of-matter/index.html，在线页面不放这一页。
 
 这是方便分享的混淆版。可读的源码在仓库里：
 https://github.com/luckinov/learn-anew
@@ -221,7 +226,7 @@ await rm(outDir, { recursive: true, force: true });
 await mkdir(outDir, { recursive: true });
 
 const built = new Map();
-for (const [rel] of pages) built.set(rel, await buildPage(rel));
+for (const [rel] of [...pages, ...downloadOnly]) built.set(rel, await buildPage(rel));
 
 const indexHtml = landingPage();
 await writeFile(join(outDir, 'index.html'), indexHtml);

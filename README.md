@@ -11,7 +11,7 @@
 
 「物态变化 · 3D」第一次打开需要联网。讲解语音已经打在压缩包里，解压后可以离线听。
 
-对外只发布 `states-of-matter/`：`index.html` 是 2D 版，`3d.html` 是 3D 版。仓库里是原始源码，网页和 Release 压缩包是混淆后的分享版。
+在线页面只放三维版 `states-of-matter/3d.html`。平面版不部署，需要时从 Release 压缩包里打开 `states-of-matter/index.html`。仓库里是原始源码，网页和 Release 压缩包是混淆后的分享版。
 
 ## 重新打包
 

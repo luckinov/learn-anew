@@ -5,8 +5,9 @@
 <meta charset="UTF-8">
 <meta name="author" content="傅新瑞">
 <!-- 页面版本。改 meta version，在 changelog 最前面加一条，并同步 voice/manifest.json 的 version -->
-<meta name="version" content="1.1.0">
+<meta name="version" content="1.1.1">
 <script type="application/json" id="changelog">[
+  {"v":"1.1.1","notes":["手机上点「讲解」后会持续播放","第一次打开还在下载三维组件时，不再误报加载失败"]},
   {"v":"1.1.0","notes":["浅色高对比投影版，地址加 ?light=1","开头和结尾分成固态晶格、液态液滴、气态分子，只用主题色","讲解换成微软云健，按每句字幕的时间播放，可开关"]},
   {"v":"1.0.0","notes":["3D 版六种物态变化","开头和结尾各有一张总结图，可暂停对着讲","章节切换有过渡，点画面空白处隐藏控制栏，并适配手机"]}
 ]</script>
@@ -149,7 +150,9 @@
   #ui button.on{background:linear-gradient(90deg,rgba(0,220,255,.35),rgba(255,0,200,.35));border-color:#fff;color:#fff}
   #ui .sep{width:1px;height:22px;background:rgba(255,255,255,.15);margin:0 4px}
   #time{font:12px "SF Mono",Menlo,monospace;color:#9ef;min-width:92px;text-align:center}
-  #start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;
+  #start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:safe center;z-index:10;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;box-sizing:border-box;
+    padding:calc(20px + var(--st)) 18px calc(20px + var(--sb));
     background:radial-gradient(ellipse at 50% 45%,#1a0b3a 0%,#05040f 60%,#000 100%)}
   #start h1{margin:0;font-size:min(13vw,120px);font-weight:900;letter-spacing:.08em}
   #start a.alt{margin-top:16px;color:#9cf;font-size:14px;text-decoration:none;border-bottom:1px solid rgba(150,200,255,.45)}
@@ -157,8 +160,9 @@
   #start button{font-size:20px;padding:14px 42px;border-radius:40px;border:1px solid #0ff;color:#fff;cursor:pointer;
     background:linear-gradient(90deg,rgba(0,255,255,.18),rgba(255,0,200,.18));box-shadow:0 0 30px rgba(0,255,255,.35),inset 0 0 20px rgba(255,0,200,.2);font-family:inherit}
   @media (hover:hover){#start button:hover{box-shadow:0 0 50px rgba(0,255,255,.6),inset 0 0 30px rgba(255,0,200,.35)}}
+  #start button,#start a.alt,#start .tip,#start .ver{flex-shrink:0}
   #start button.pick{margin-top:22px;font-size:15px;padding:9px 26px;border-color:rgba(120,200,255,.45);box-shadow:none;
-    background:rgba(255,255,255,.05);max-width:80vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    background:rgba(255,255,255,.05);max-width:80vw;min-height:44px;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #start .tip{margin-top:28px;color:rgba(255,255,255,.45);font-size:13px}
   #start .ver{margin-top:18px;color:rgba(255,255,255,.72);font:600 12px "SF Mono",Menlo,monospace;letter-spacing:.04em}
   #clog{margin-top:10px;max-width:min(560px,88vw);max-height:24vh;overflow:auto;text-align:left;color:rgba(255,255,255,.72);font-size:13px;line-height:1.55}
@@ -167,7 +171,8 @@
   #clog ul{margin:2px 0 0;padding-left:1.15em}
   #clog li{margin:1px 0}
   #verBar{font:600 11px "SF Mono",Menlo,monospace;color:rgba(180,220,255,.55);letter-spacing:.04em;padding:0 2px}
-  #start .err{margin-top:20px;color:#f88;font-size:13px;display:none}
+  #start .err{margin-top:20px;color:#f88;font-size:13px;display:none;text-align:center;padding:0 24px;line-height:1.6}
+  #start .err.wait{color:#9cf}
   @keyframes hue{to{background-position:300% 0}}
 
   /* 手机横屏 / 矮屏 */
@@ -182,7 +187,8 @@
     #pbl{margin-top:8px} #pbl li{font-size:12px;margin:5px 0}
     .bars{margin-top:8px} .bar{margin:4px 0;font-size:11px} .bar .tr{height:4px}
     #sub{bottom:calc(14px + var(--sb));font-size:14px;padding:7px 18px}
-    #ui{padding:6px 8px;gap:4px} #ui button,#ui a{padding:5px 8px;font-size:12px}
+    #ui{padding:6px 8px;gap:4px} #ui button,#ui a{padding:5px 8px;font-size:12px;flex:none}
+    #start p{margin:6px 0 12px} #start .tip{margin-top:10px} #clog{max-height:12vh}
     #wzh{font-size:64px} #wno,#wen{font-size:11px}
     #outro .o4{margin-top:30px}
   }
@@ -210,7 +216,8 @@
     #ui{left:8px;right:8px;transform:none;max-width:none;bottom:calc(10px + var(--sb));padding:8px;gap:6px;justify-content:space-between}
     #ui.hide{transform:translateY(14px)}
     #ui .sep{display:none}
-    #ui button,#ui a{padding:8px 10px}
+    #ui button,#ui a{padding:8px 10px;flex:none}
+    #ui{max-height:42vh;overflow:auto}
     #time{display:none}
     #chaps{order:9;flex:1 0 100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
       -webkit-mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 12px),transparent);
@@ -263,6 +270,7 @@
   html.light #wpg{background:rgba(20,30,50,.12)}
   html.light #start{background:radial-gradient(ellipse at 50% 42%,#fff 0%,#e8eef6 68%,#d5deea 100%)}
   html.light #start p,html.light #start .tip,html.light #start .ver,html.light #clog{color:#3d4d63}
+  html.light #start .err.wait{color:#1d4e89}
   html.light #clog b{color:#142033}
   html.light #verBar{color:#526277}
   html.light #start a.alt{color:#1d4e89;border-bottom-color:#1d4e89}
@@ -331,7 +339,7 @@
   <a id="toTheme" class="alt" href="./3d.html?light=1">浅色投影版</a>
   <div class="ver" id="ver"></div>
   <div id="clog"></div>
-  <div class="err" id="err">Three.js 加载失败：3D 版需要联网从 CDN 加载 three.js。</div>
+  <div class="err" id="err"></div>
 </div>
 
 <div id="ui" class="hide">
@@ -348,13 +356,35 @@
   <button id="bMute">🔊</button>
   <button id="bFull">⛶</button>
   <a id="toThemeBar" href="./3d.html?light=1">投影版</a>
-  <a id="to2d" href="./index.html">2D 版</a>
   <span id="verBar"></span>
 </div>
 <input id="bgmFile" type="file" accept="audio/*" hidden>
 
 <script>
-  setTimeout(() => { if (!window.__three3d) document.getElementById('err').style.display = 'block'; }, 6000);
+  const err = document.getElementById('err');
+  let failed = false;
+  const show = (text, wait) => {
+    err.textContent = text;
+    err.classList.toggle('wait', !!wait);
+    err.style.display = 'block';
+  };
+  setTimeout(() => {
+    const app = document.querySelector('script[type="module"]');
+    if (!app) return;
+    app.addEventListener('error', () => {
+      failed = true;
+      show('三维组件没有载入。请确认手机能上网，然后重新打开这一页。');
+    });
+  }, 0);
+  setTimeout(() => {
+    if (window.__three3d || failed) return;
+    show('正在下载三维组件，第一次打开会久一点。', true);
+  }, 1500);
+  const tick = setInterval(() => {
+    if (!window.__three3d) return;
+    clearInterval(tick);
+    err.style.display = 'none';
+  }, 200);
 </script>
 <script type="module">
 import * as THREE from 'three';
@@ -1248,6 +1278,7 @@ const tri = u => { u = ((u % 1) + 1) % 1; return u < .5 ? u * 2 : 2 - u * 2; };
 
 /* ============================== 音频（转场音效 + 自选背景音乐） ============================== */
 const bgm = new Audio(); bgm.loop = true; bgm.preload = 'auto';
+const voice = new Audio(); voice.preload = 'auto'; voice.playsInline = true; voice.setAttribute('playsinline', '');
 const AU = {
   ctx: null, muted: false, sfxOn: true, hasBgm: false,
   init() {
@@ -1264,6 +1295,8 @@ const AU = {
     const d = this.nbuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.musicG = C.createGain(); this.musicG.gain.value = 0; this.musicG.connect(this.out);
     C.createMediaElementSource(bgm).connect(this.musicG);
+    this.voiceG = C.createGain(); this.voiceG.gain.value = 1; this.voiceG.connect(this.out);
+    C.createMediaElementSource(voice).connect(this.voiceG);
   },
   impulse(sec) {
     const C = this.ctx, len = C.sampleRate * sec | 0, b = C.createBuffer(2, len, C.sampleRate);
@@ -1319,29 +1352,60 @@ const TTS = {
     if (this.job) return this.job;
     this.job = fetch('voice/manifest.json').then(r => { if (!r.ok) throw new Error('tts'); return r.json(); }).then(man => {
       if (man.version !== VERSION) console.warn(`讲解语音是 v${man.version || '?'}，页面是 v${VERSION}`);
-      this.clips = man.lines.map(l => {
-        const a = new Audio('voice/' + l.file);
-        a.preload = 'auto';
-        return { a, dur: l.dur };
-      });
+      this.clips = man.lines.map(l => ({ file: l.file, dur: l.dur }));
       return this.clips;
     });
     return this.job;
   },
   stop() {
     this.idx = -1;
-    if (!this.clips) return;
-    for (const c of this.clips) { c.a.pause(); try { c.a.currentTime = 0; } catch (e) {} }
+    voice.pause();
+    try { voice.currentTime = 0; } catch (e) {}
   },
   paint() {
     $('#bTts').classList.toggle('on', this.on);
     $('#bTts').textContent = this.on ? '🔊 讲解' : '讲解';
     $('#bTtsStart').textContent = this.on ? '🔊 讲解 开' : '讲解 关';
   },
+  srcFor(i) { return new URL('voice/' + this.clips[i].file, document.baseURI).href; },
+  // 手机浏览器只允许在这次点击里同步调用 play()，等网络回来再播会被直接丢掉
+  playAt(i, into) {
+    const a = voice, src = this.srcFor(i);
+    if (a.src !== src) a.src = src;
+    this.idx = i;
+    const align = () => {
+      if (this.idx !== i) return;
+      try { if (Math.abs((a.currentTime || 0) - into) > .2) a.currentTime = into; } catch (e) {}
+    };
+    if (a.readyState >= 1) align();
+    else a.addEventListener('loadedmetadata', () => align(), { once: true });
+    const p = a.play();
+    if (p) p.catch(() => {});
+  },
+  prime() {
+    if (!this.clips || !this.clips.length) return;
+    const a = voice, src = this.srcFor(0);
+    if (a.src !== src) a.src = src;
+    const p = a.play();
+    const halt = () => { if (this.idx < 0) { a.pause(); try { a.currentTime = 0; } catch (e) {} } };
+    if (p) p.then(halt).catch(() => {});
+  },
+  arm(R) {
+    AU.init();
+    if (AU.ctx && AU.ctx.state !== 'running') AU.ctx.resume();
+    if (!this.clips) return;
+    const live = playing && !AU.muted && (!J || J.ph === 'in');
+    const i = live ? SUBS.findIndex(s => R >= s[0] && R < s[1]) : -1;
+    if (i >= 0 && this.clips[i] && R - SUBS[i][0] < this.clips[i].dur - .04) this.playAt(i, Math.max(0, R - SUBS[i][0]));
+    else this.prime();
+  },
   toggle() {
-    this.on = !this.on; this.paint();
+    this.on = !this.on;
+    this.paint();
     if (!this.on) { this.stop(); return; }
-    this.load().then(() => this.sync(T)).catch(() => { this.on = false; this.stop(); this.paint(); });
+    const run = () => { if (this.on) this.arm(playing ? T : 0); };
+    if (this.clips) run();
+    else this.load().then(run).catch(() => { this.on = false; this.stop(); this.paint(); });
   },
   sync(R) {
     if (!this.on || !this.clips || AU.muted || !playing || (J && J.ph !== 'in')) {
@@ -1350,26 +1414,22 @@ const TTS = {
     }
     const i = SUBS.findIndex(s => R >= s[0] && R < s[1]);
     if (i < 0 || !this.clips[i]) { if (this.idx >= 0) this.stop(); return; }
-    const clip = this.clips[i], into = Math.max(0, R - SUBS[i][0]);
-    if (into >= clip.dur - .04) {
-      if (!clip.a.paused) clip.a.pause();
+    const into = Math.max(0, R - SUBS[i][0]);
+    if (into >= this.clips[i].dur - .04) {
+      if (!voice.paused) voice.pause();
       this.idx = i;
       return;
     }
-    if (this.idx !== i) {
-      if (this.idx >= 0) { const p = this.clips[this.idx].a; p.pause(); try { p.currentTime = 0; } catch (e) {} }
-      this.idx = i;
-      const kick = () => {
-        if (this.idx !== i) return;
-        clip.a.currentTime = into;
-        clip.a.play().then(() => { if (this.idx === i && Math.abs(clip.a.currentTime - into) > .25) clip.a.currentTime = into; }).catch(() => {});
-      };
-      if (clip.a.readyState >= 1) kick(); else clip.a.addEventListener('loadedmetadata', kick, { once: true });
-    } else if (clip.a.paused) {
-      clip.a.currentTime = into; clip.a.play().catch(() => {});
-    } else if (Math.abs(clip.a.currentTime - into) > .4) clip.a.currentTime = into;
+    if (this.idx !== i) this.playAt(i, into);
+    else if (voice.paused) {
+      try { voice.currentTime = into; } catch (e) {}
+      voice.play().catch(() => {});
+    } else if (Math.abs(voice.currentTime - into) > .4) {
+      try { voice.currentTime = into; } catch (e) {}
+    }
   },
 };
+TTS.load();
 const TEV = [
   { t: .3, f: () => { flashK = 1.2; AU.boom(.9); } },
   { t: IP + .1, f: () => AU.whoosh() },
@@ -1569,7 +1629,7 @@ const endPtr = e => {
 };
 addEventListener('pointerup', endPtr); addEventListener('pointercancel', endPtr);
 
-$('#go').onclick = () => { AU.init(); if (AU.ctx) AU.ctx.resume(); $('#start').style.display = 'none'; seek(0); setPlaying(true); showUI(); if (TTS.on) TTS.load().then(() => TTS.sync(0)); };
+$('#go').onclick = () => { AU.init(); if (AU.ctx) AU.ctx.resume(); $('#start').style.display = 'none'; seek(0); setPlaying(true); showUI(); if (TTS.on) TTS.arm(0); };
 $('#bPlay').onclick = () => { if (PM.on) exitPM(true); else if (T >= TOTAL) jumpTo(0); else setPlaying(!playing); };
 $('#bDiag').onclick = () => PM.on ? exitPM() : enterPM();
 $('#bRestart').onclick = () => jumpTo(0);
@@ -1591,13 +1651,8 @@ $('#bgmFile').onchange = e => {
   if (!req) $('#bFull').style.display = 'none';
   $('#bFull').onclick = () => { if (!req) return; (document.fullscreenElement || document.webkitFullscreenElement) ? exit.call(document) : req.call(de); };
 }
-$('#to2d').onclick = e => {
-  e.preventDefault(); if (leaveT >= 0) return;
-  const href = e.currentTarget.href; leaveT = NOW;
-  setTimeout(() => { location.href = href; }, 450);
-};
 addEventListener('pageshow', e => { if (e.persisted) leaveT = -1; });
-if (COARSE) $('#tip').textContent = '单指拖动旋转 · 双指缩放 · 轻点画面显示/隐藏控制栏 · 时长约 2 分 18 秒';
+if (COARSE) $('#tip').textContent = '先点「讲解」再开始。单指拖动旋转 · 双指缩放 · 轻点画面显示控制栏';
 addEventListener('keydown', e => {
   if ($('#start').style.display !== 'none') return;
   if (PM.on) {
