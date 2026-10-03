@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "author": "傅新瑞",
+  "license": "CC-BY-NC-SA-4.0",
   "scripts": {
     "build": "node build.mjs"
   },

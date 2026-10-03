@@ -1,0 +1,14 @@
+---
+description: 仓库协议是知识共享 CC BY-NC-SA 4.0，不要改成 MIT 或允许商用
+alwaysApply: true
+---
+
+# 协议
+
+本仓库使用 CC BY-NC-SA 4.0。法律文本在根目录 `LICENSE`，不要改写，不要换成 MIT、Apache 或其他协议。
+
+- 可以分享、修改，用于课堂和学习
+- 必须署名，修改版继续用同一协议
+- 不要把动画放进商业产品，也不要在页面或说明里写成可以商用
+
+`npm run build` 会把 `LICENSE` 复制进 `release/`。不要从使用说明或首页页脚删掉协议那一句。

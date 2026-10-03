@@ -1,0 +1,19 @@
+---
+description: 讲解动画保持单文件 HTML，方便后来的人用 AI 接着改
+globs: "**/*.html"
+alwaysApply: false
+---
+
+# 页面写法
+
+新动画不要加框架、打包器或新的 npm 依赖。样式和脚本写在同一个 html 里。
+
+- 语言用中文，句子短，按钮用「讲解」「暂停」这类词
+- 手机和投屏都要能点：字够大，按钮够大，不要只靠鼠标悬停
+- 图片和语音放在本文件夹，用相对路径
+- 要用网上的库时，在 `meta.json` 里把该页的 `要联网` 设为 true
+- 深色背景，字体用 `-apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif`
+- 不要改 `build.mjs` 的混淆选项，也不要去改 `gh-pages` 里的文件
+- 已有页面头上的 `author`、`version`、`changelog` 保持原样；小演示不必新加这三项
+
+改完用浏览器打开这个 html，把能点的按钮点一遍。要上线再在仓库根目录运行 `npm run build`。约定详见 `docs/架构与维护.md`。

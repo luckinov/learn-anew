@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,19 +9,7 @@ import { minify } from 'html-minifier-terser';
 const root = dirname(fileURLToPath(import.meta.url));
 const outDir = join(root, 'release');
 
-const pages = [
-  ['states-of-matter/3d.html', '固液气物态变化，三维演示。第一次打开需要联网'],
-];
-
-// 平面版不放到在线页面上，只放进下载压缩包。
-const downloadOnly = [
-  ['states-of-matter/index.html', '固液气物态变化，平面演示'],
-];
-
-const titles = {
-  'states-of-matter/index.html': '物态变化 · 2D',
-  'states-of-matter/3d.html': '物态变化 · 3D',
-};
+// 上线哪些页、对应哪本课本，都写在各动画目录的 meta.json 里。这里不再手写名单。
 
 // 跟 states-of-matter/build.mjs 同一套保守选项：字符串会打乱，但每帧的物理循环不做控制流平坦化。
 const obfuscatorOptions = {
@@ -133,11 +121,168 @@ async function buildPage(rel) {
   return html;
 }
 
-function landingPage() {
-  const cards = pages.map(([href, desc]) => {
-    const title = titles[href];
-    return `<a class="card" href="${href}"><strong>${title}</strong><span>${desc}</span></a>`;
+const PRIMARY_GRADES = new Set(['一年级', '二年级', '三年级', '四年级', '五年级', '六年级', '低年级', '中年级', '高年级', '不限年级']);
+const JUNIOR_GRADES = new Set(['七年级', '八年级', '九年级', '不限年级']);
+const SUBJECTS = new Set(['语文', '数学', '英语', '道德与法治', '科学', '物理', '化学', '生物', '历史', '地理', '信息科技', '音乐', '美术', '体育与健康']);
+const GRADE_RANK = ['一年级', '二年级', '三年级', '低年级', '四年级', '五年级', '中年级', '六年级', '高年级', '七年级', '八年级', '九年级', '不限年级'];
+
+function fail(folder, message) {
+  throw new Error(`${folder}/meta.json：${message}`);
+}
+
+function text(folder, obj, key, max) {
+  const value = obj?.[key];
+  if (typeof value !== 'string' || !value.trim()) fail(folder, `缺少「${key}」`);
+  const trimmed = value.trim();
+  if ([...trimmed].length > max) fail(folder, `「${key}」请写短一些，不超过 ${max} 个字`);
+  return trimmed;
+}
+
+function bookLine(book) {
+  const grade = book.年级 === '不限年级' ? book.学段 : `${book.学段}${book.年级}`;
+  const loosen = book.对应 === '主题' ? '' : ` · ${book.对应}`;
+  return `人教版 · ${grade} · ${book.科目} · ${book.主题}${loosen}`;
+}
+
+function checkBook(folder, book, index) {
+  if (!book || typeof book !== 'object' || Array.isArray(book)) fail(folder, `课本第 ${index + 1} 条不是对象`);
+  const edition = text(folder, book, '版本', 20);
+  const note = text(folder, book, '说明', 80);
+  if (edition === '不对应课文') {
+    const extra = Object.keys(book).filter((key) => key !== '版本' && key !== '说明');
+    if (extra.length) fail(folder, '标了「不对应课文」就不要再写年级、科目');
+    return { 版本: edition, 说明: note, 不对应课文: true };
+  }
+  if (edition !== '人教版') fail(folder, '版本只写「人教版」。纯试验页写「不对应课文」');
+  const stage = text(folder, book, '学段', 4);
+  if (stage !== '小学' && stage !== '初中') fail(folder, '学段只写「小学」或「初中」');
+  const grade = text(folder, book, '年级', 4);
+  const allowed = stage === '小学' ? PRIMARY_GRADES : JUNIOR_GRADES;
+  if (!allowed.has(grade)) fail(folder, `${stage}没有「${grade}」。可以写具体年级，也可以写低年级、中年级、高年级、不限年级`);
+  const subject = text(folder, book, '科目', 6);
+  if (!SUBJECTS.has(subject)) fail(folder, `科目「${subject}」不在名单里。用课本上的科目名，例如科学、物理、数学、信息科技`);
+  const topic = text(folder, book, '主题', 20);
+  const match = text(folder, book, '对应', 4);
+  if (!['笼统', '主题', '拓展'].includes(match)) fail(folder, '对应只写「笼统」「主题」或「拓展」');
+  return { 版本: edition, 学段: stage, 年级: grade, 科目: subject, 主题: topic, 对应: match, 说明: note };
+}
+
+function checkPage(folder, page, index) {
+  if (!page || typeof page !== 'object' || Array.isArray(page)) fail(folder, `页面第 ${index + 1} 条不是对象`);
+  const file = text(folder, page, '文件', 40);
+  if (file.includes('/') || file.includes('\\') || !file.endsWith('.html')) {
+    fail(folder, `「${file}」要写本文件夹里的 html 文件名，不要写路径`);
+  }
+  const publish = text(folder, page, '发布', 4);
+  if (!['在线', '仅下载', '不发布'].includes(publish)) fail(folder, '发布只写「在线」「仅下载」或「不发布」');
+  if (typeof page.要联网 !== 'boolean') fail(folder, `${file} 的「要联网」要写 true 或 false`);
+  return {
+    file,
+    title: text(folder, page, '标题', 24),
+    desc: text(folder, page, '说明', 40),
+    publish,
+    needsNet: page.要联网,
+  };
+}
+
+async function loadTopics() {
+  const entries = await readdir(root, { withFileTypes: true });
+  const topics = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'release') continue;
+    const folder = entry.name;
+    const dir = join(root, folder);
+    const files = await readdir(dir);
+    const htmlFiles = files.filter((name) => name.endsWith('.html')).sort();
+    if (htmlFiles.length === 0) continue;
+
+    const metaPath = join(dir, 'meta.json');
+    let raw;
+    try {
+      raw = JSON.parse(await readFile(metaPath, 'utf8'));
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        throw new Error(`${folder} 里有网页，但没有 meta.json。先写好人教版的年级和科目，构建才会通过。`);
+      }
+      throw new Error(`${folder}/meta.json 不是合法的 JSON\n${error.message}`);
+    }
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail(folder, '内容必须是一个对象');
+    const id = text(folder, raw, 'id', 40);
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) || id !== folder) {
+      fail(folder, `id 要和文件夹名一样，现在文件夹是 ${folder}`);
+    }
+
+    const status = text(folder, raw, '状态', 4);
+    if (!['可讲', '草稿', '内部'].includes(status)) fail(folder, '状态只写「可讲」「草稿」或「内部」');
+    if (!Array.isArray(raw.课本) || raw.课本.length === 0) fail(folder, '至少写一条课本');
+    const books = raw.课本.map((book, index) => checkBook(folder, book, index));
+    const unrelated = books.filter((book) => book.不对应课文);
+    if (unrelated.length && unrelated.length !== books.length) fail(folder, '不要把「不对应课文」和人教版写在一起');
+    if (!Array.isArray(raw.页面) || raw.页面.length === 0) fail(folder, '至少写一个页面');
+    const pages = raw.页面.map((page, index) => checkPage(folder, page, index));
+    const listed = pages.map((page) => page.file).sort();
+    if (new Set(listed).size !== listed.length) fail(folder, '同一个 html 写了两次');
+    if (listed.join('\n') !== htmlFiles.join('\n')) {
+      fail(folder, `页面名单和文件夹里的 html 不一致。文件夹里有：${htmlFiles.join('、')}`);
+    }
+    for (const page of pages) {
+      page.href = `${folder}/${page.file}`;
+    }
+
+    const shipped = pages.some((page) => page.publish !== '不发布');
+    if (status === '可讲' && !shipped) fail(folder, '状态是「可讲」，至少有一页要写「在线」或「仅下载」');
+    if (status !== '可讲' && shipped) fail(folder, '草稿和内部页面的发布要写「不发布」，确认能讲了再改成「可讲」');
+    if (unrelated.length && (status !== '内部' || shipped)) {
+      fail(folder, '不对应课文的试验页只能是「内部」，并且不要发布');
+    }
+
+    const resources = raw.资源 ?? [];
+    if (!Array.isArray(resources) || resources.some((name) => typeof name !== 'string' || name.includes('/') || name.includes('..'))) {
+      fail(folder, '资源要写成文件夹名的数组，例如 ["voice"]');
+    }
+    for (const name of resources) {
+      const resourceDir = join(dir, name);
+      try {
+        const info = await readdir(resourceDir);
+        if (!info) fail(folder, `找不到资源文件夹 ${name}`);
+      } catch (error) {
+        if (error.code === 'ENOTDIR' || error.code === 'ENOENT') fail(folder, `找不到资源文件夹 ${name}`);
+        throw error;
+      }
+    }
+
+    topics.push({
+      id,
+      folder,
+      title: text(folder, raw, '标题', 20),
+      blurb: text(folder, raw, '一句话', 40),
+      status,
+      books,
+      pages,
+      resources,
+    });
+  }
+  return topics;
+}
+
+function landingPage(onlinePages, downloadPages) {
+  const rank = (page) => {
+    const grade = page.books.find((book) => !book.不对应课文)?.年级;
+    const index = GRADE_RANK.indexOf(grade);
+    return index === -1 ? GRADE_RANK.length : index;
+  };
+  const cards = [...onlinePages].sort((a, b) => rank(a) - rank(b) || a.title.localeCompare(b.title, 'zh')).map((page) => {
+    const books = page.books.filter((book) => !book.不对应课文).map((book) => `<em>${bookLine(book)}</em>`).join('');
+    return `<a class="card" href="${page.href}"><strong>${page.title}</strong>${books}<span>${page.desc}</span></a>`;
   }).join('\n');
+  const net = onlinePages.filter((page) => page.needsNet).map((page) => page.title);
+  const netLine = net.length
+    ? `<p>这些页面第一次打开需要联网：${net.join('、')}。用到的组件下载完就能看。</p>`
+    : '';
+  const offline = downloadPages.map((page) => `<code>${page.href}</code>（${page.title}）`).join('、');
+  const offlineLine = offline
+    ? `<p>想保存到自己电脑：到 <a href="https://github.com/luckinov/learn-anew/releases/latest">下载页</a> 下载压缩包，解压后双击 <code>index.html</code>。压缩包里还有：${offline}。这些页不放在线。</p>`
+    : `<p>想保存到自己电脑：到 <a href="https://github.com/luckinov/learn-anew/releases/latest">下载页</a> 下载压缩包，解压后双击 <code>index.html</code>。</p>`;
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -162,7 +307,8 @@ function landingPage() {
   }
   a.card:hover { border-color: rgba(140,180,255,.45); }
   a.card strong { display: block; font-size: 18px; margin-bottom: 4px; }
-  a.card span { color: #9aabc8; font-size: 14px; line-height: 1.5; }
+  a.card em { display: block; margin-top: 6px; color: #9ec0ff; font-style: normal; font-size: 13px; }
+  a.card span { display: block; margin-top: 6px; color: #9aabc8; font-size: 14px; line-height: 1.5; }
   footer { margin-top: 28px; color: #8b98b3; font-size: 14px; line-height: 1.7; }
   footer a { color: #9ec0ff; }
 </style>
@@ -170,13 +316,14 @@ function landingPage() {
 <body>
 <main>
   <h1>讲解动画</h1>
-  <p class="lead">用浏览器打开就行，不用安装别的软件。点下面开始看三维演示。</p>
+  <p class="lead">用浏览器打开就行，不用安装别的软件。卡片上的年级和科目按人教版笼统标好，方便对着课本讲，不精确到某一课。</p>
   <div class="cards">
 ${cards}
   </div>
   <footer>
-    <p>第一次打开需要联网，三维组件下载完就能看。</p>
-    <p>想保存到自己电脑：到 <a href="https://github.com/luckinov/learn-anew/releases/latest">下载页</a> 下载压缩包，解压后双击 <code>index.html</code>。平面版在压缩包的 <code>states-of-matter/index.html</code>，在线页面不放。</p>
+    ${netLine}
+    ${offlineLine}
+    <p>协议：<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh">知识共享 署名-非商业性使用-相同方式共享 4.0</a>。课堂和学习可以用，请勿商用。</p>
   </footer>
 </main>
 </body>
@@ -184,17 +331,48 @@ ${cards}
 `;
 }
 
-const readme = `learn-anew 讲解动画
+function usageText(onlinePages, downloadPages) {
+  const net = onlinePages.filter((page) => page.needsNet).map((page) => `「${page.title}」`).join('、');
+  const netLine = net ? `${net}需要联网，第一次打开会从网上加载用到的组件。\n` : '';
+  const offline = downloadPages.map((page) => `${page.href}（${page.title}）`).join('\n');
+  const offlineLine = offline ? `这些页只在压缩包里，在线页面不放：\n${offline}\n` : '';
+  return `learn-anew 讲解动画
 
 用浏览器打开本文件夹里的 index.html 即可，不需要安装开发工具。
 建议使用 Chrome、Edge 或 Safari。
 
-「物态变化 · 3D」需要联网，第一次打开会从网上加载三维图形库。
-平面版在 states-of-matter/index.html，在线页面不放这一页。
+首页卡片上的年级和科目，按人教版笼统标注，方便对着课本讲，不精确到某一课。
 
+${netLine}${offlineLine}
 这是方便分享的混淆版。可读的源码在仓库里：
 https://github.com/luckinov/learn-anew
+
+协议：知识共享 署名-非商业性使用-相同方式共享 4.0（CC BY-NC-SA 4.0）。
+可以在课堂和学习中使用、修改并分享。请保留署名。不要用于商业用途。
+说明：https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh
+法律文本在同目录的 LICENSE。
 `;
+}
+
+function catalogJson(topics) {
+  const entries = topics.filter((topic) => topic.status === '可讲').map((topic) => ({
+    id: topic.id,
+    标题: topic.title,
+    一句话: topic.blurb,
+    课本: topic.books.map(({ 不对应课文, ...book }) => book),
+    页面: topic.pages.filter((page) => page.publish !== '不发布').map((page) => ({
+      文件: page.href,
+      标题: page.title,
+      说明: page.desc,
+      发布: page.publish,
+      要联网: page.needsNet,
+    })),
+  }));
+  return {
+    说明: '年级和科目按人教版笼统对应，不精确到某一课。',
+    条目: entries,
+  };
+}
 
 function extractScripts(html) {
   return [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].map((m) => ({
@@ -222,29 +400,67 @@ async function checkSyntax(rel, html) {
   }
 }
 
+async function checkNarration(topic) {
+  for (const name of topic.resources) {
+    const manifestPath = join(root, topic.folder, name, 'manifest.json');
+    let raw;
+    try {
+      raw = await readFile(manifestPath, 'utf8');
+    } catch (error) {
+      if (error.code === 'ENOENT') continue;
+      throw error;
+    }
+    const manifest = JSON.parse(raw);
+    if (!manifest.version || !Array.isArray(manifest.lines) || manifest.lines.length === 0) {
+      throw new Error(`${topic.folder}/${name}/manifest.json 不是有效的讲解清单`);
+    }
+  }
+}
+
+const topics = await loadTopics();
+if (!topics.some((topic) => topic.pages.some((page) => page.publish === '在线'))) {
+  throw new Error('没有任何「在线」页面，首页会是空的');
+}
+
 await rm(outDir, { recursive: true, force: true });
 await mkdir(outDir, { recursive: true });
 
+const onlinePages = [];
+const downloadPages = [];
 const built = new Map();
-for (const [rel] of [...pages, ...downloadOnly]) built.set(rel, await buildPage(rel));
-
-const indexHtml = landingPage();
-await writeFile(join(outDir, 'index.html'), indexHtml);
-await writeFile(join(outDir, '使用说明.txt'), readme);
-await writeFile(join(outDir, '.nojekyll'), '');
-
-const voiceSrc = join(root, 'states-of-matter/voice');
-await cp(voiceSrc, join(outDir, 'states-of-matter/voice'), { recursive: true });
-const manifest = JSON.parse(await readFile(join(voiceSrc, 'manifest.json'), 'utf8'));
-if (!manifest.version || !Array.isArray(manifest.lines) || manifest.lines.length === 0) {
-  throw new Error('states-of-matter/voice/manifest.json 不是有效的讲解清单');
+const sources = new Map();
+for (const topic of topics) {
+  const shipped = topic.pages.filter((page) => page.publish !== '不发布');
+  if (shipped.length === 0) {
+    console.log(`${topic.folder}  ${topic.status}，不发布`);
+    continue;
+  }
+  await checkNarration(topic);
+  for (const name of topic.resources) {
+    await cp(join(root, topic.folder, name), join(outDir, topic.folder, name), { recursive: true });
+  }
+  for (const page of shipped) {
+    page.books = topic.books;
+    sources.set(page.href, await readFile(join(root, page.href), 'utf8'));
+    built.set(page.href, await buildPage(page.href));
+    if (page.publish === '在线') onlinePages.push(page);
+    else downloadPages.push(page);
+  }
 }
+
+await writeFile(join(outDir, 'index.html'), landingPage(onlinePages, downloadPages));
+await writeFile(join(outDir, '使用说明.txt'), usageText(onlinePages, downloadPages));
+await writeFile(join(outDir, 'catalog.json'), `${JSON.stringify(catalogJson(topics), null, 2)}\n`);
+await writeFile(join(outDir, '.nojekyll'), '');
+await cp(join(root, 'LICENSE'), join(outDir, 'LICENSE'));
 
 for (const [rel, html] of built) await checkSyntax(rel, html);
 
-const matter3d = built.get('states-of-matter/3d.html');
-if (!/from["']three["']/.test(matter3d) || !matter3d.includes('__three3d')) {
-  throw new Error('3D 页的模块引用或启动标记丢失了');
+for (const [rel, html] of built) {
+  const source = sources.get(rel);
+  if (source.includes('__three3d') && (!/from["']three["']/.test(html) || !html.includes('__three3d'))) {
+    throw new Error(`${rel} 的三维模块引用或启动标记丢失了`);
+  }
 }
 
 console.log('release/ 已生成');

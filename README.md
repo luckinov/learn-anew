@@ -22,4 +22,20 @@ npm install
 npm run build
 ```
 
-产物在 `release/`，不会提交进仓库。`states-of-matter` 里原来的 `npm run build` 仍然只打包那个目录的 2D 页。
+产物在 `release/`，不会提交进仓库。上线哪些页、卡片上的年级和科目，来自每个动画目录里的 `meta.json`。`states-of-matter` 里原来的 `npm run build` 仍然只打包那个目录的 2D 页。
+
+## 维护
+
+给人看的说明在 [docs/架构与维护.md](docs/架构与维护.md)：目录怎么分、怎样标人教版的年级和科目、怎样加一个动画、H5 怎样部署。
+
+每个动画文件夹里有一份 `meta.json`。没写课本标注时，`npm run build` 不会通过。
+
+## 协议
+
+知识共享 署名-非商业性使用-相同方式共享 4.0 国际（[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh)）。法律文本在 [LICENSE](LICENSE)。
+
+可以复制、修改，也可以在课堂、学校和个人学习里使用。请保留署名，并注明改过哪里。朋友接着做的版本，也要用同一协议公开。
+
+不要用于商业目的：不要出售这些动画，不要放进收费产品，也不要拿去给商业服务做宣传。
+
+提交到这个仓库，即表示该贡献也按这个协议共享。第三方库仍遵守它们各自的协议。
