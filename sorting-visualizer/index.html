@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>排序算法可视化</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f0f1a;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  h1 { margin: 24px 0 8px; font-size: 28px; font-weight: 700; letter-spacing: 1px; }
+  .subtitle { color: #888; margin-bottom: 20px; font-size: 14px; }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+    margin-bottom: 12px; max-width: 900px;
+  }
+  .controls select, .controls button, .controls input {
+    padding: 8px 16px; border-radius: 8px; border: 1px solid #333;
+    background: #1a1a2e; color: #e0e0e0; font-size: 14px; cursor: pointer;
+    transition: all .2s;
+  }
+  .controls select:hover, .controls button:hover { border-color: #6c63ff; }
+  .controls button.primary { background: #6c63ff; border-color: #6c63ff; color: #fff; }
+  .controls button.primary:hover { background: #5a52d5; }
+  .controls button:disabled { opacity: .4; cursor: not-allowed; }
+  .controls label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #aaa; }
+  .controls input[type="range"] { width: 100px; accent-color: #6c63ff; }
+  .controls input[type="number"] {
+    width: 48px; padding: 4px 6px; font-size: 13px; text-align: center;
+    background: #252540; color: #ffd700; border: 1px solid #444;
+    border-radius: 4px; -moz-appearance: textfield;
+  }
+  .controls input[type="number"]::-webkit-inner-spin-button,
+  .controls input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: auto; opacity: 1;
+  }
+
+  .info-bar {
+    display: flex; gap: 24px; margin-bottom: 8px; font-size: 14px; color: #aaa;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .info-bar span b { color: #6c63ff; }
+
+  .step-hint {
+    text-align: center; font-size: 13px; color: #ffd700; min-height: 20px;
+    margin-bottom: 8px; max-width: 900px; width: 100%;
+  }
+
+  #container {
+    width: 100%; max-width: 900px; height: 420px;
+    background: #1a1a2e; border-radius: 12px; border: 1px solid #2a2a3e;
+    position: relative; overflow: hidden; margin-bottom: 16px;
+  }
+
+  .bar-wrapper {
+    position: absolute; bottom: 0; display: flex; flex-direction: column;
+    align-items: center; cursor: grab; transition: left .12s ease, transform .12s;
+    z-index: 1; user-select: none; -webkit-user-select: none;
+  }
+  .bar-wrapper:hover { transform: translateY(-4px); }
+  .bar-wrapper.selected .bar { box-shadow: 0 0 16px #ffd700, inset 0 0 8px rgba(255,215,0,.3); border-color: #ffd700; }
+  .bar-wrapper.dragging {
+    z-index: 10; transform: translateY(-20px) scale(1.1);
+    opacity: .85; transition: transform .08s, opacity .08s;
+    cursor: grabbing;
+  }
+  .bar-wrapper.dragging .bar {
+    background: linear-gradient(to top, #ffd700, #f39c12);
+    border-color: #ffd700; box-shadow: 0 0 24px rgba(255,215,0,.5);
+  }
+  .bar-wrapper.drag-over .bar { background: linear-gradient(to top, #ff6b6b, #ee5a24); border-color: #ff6b6b; }
+  .bar-wrapper.comparing .bar { background: linear-gradient(to top, #ff6b6b, #ee5a24); border-color: #ff6b6b; }
+  .bar-wrapper.swapping .bar { background: linear-gradient(to top, #ffd700, #f39c12); border-color: #ffd700; }
+  .bar-wrapper.sorted .bar { background: linear-gradient(to top, #2ecc71, #27ae60); border-color: #2ecc71; }
+  .bar-wrapper.pivot .bar { background: linear-gradient(to top, #e056fd, #be2edd); border-color: #e056fd; }
+  .bar-wrapper.range {
+    background: rgba(108, 99, 255, .12);
+    border-radius: 4px;
+  }
+
+  .bar {
+    width: 100%; border-radius: 4px 4px 0 0;
+    background: linear-gradient(to top, #6c63ff, #4834d4);
+    border: 2px solid #7c73ff;
+    transition: background .15s, border-color .15s;
+  }
+  .bar-label { font-size: 11px; color: #ccc; margin-bottom: 4px; font-weight: 600; }
+
+  .legend {
+    display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+    margin-bottom: 12px; font-size: 12px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 3px; }
+
+  .mode-tabs {
+    display: flex; gap: 4px; margin-bottom: 16px;
+    background: #1a1a2e; border-radius: 10px; padding: 4px; border: 1px solid #2a2a3e;
+  }
+  .mode-tabs button {
+    padding: 8px 24px; border-radius: 8px; border: none;
+    background: transparent; color: #aaa; font-size: 14px; cursor: pointer;
+    transition: all .2s;
+  }
+  .mode-tabs button.active { background: #6c63ff; color: #fff; }
+  .mode-tabs button:disabled { opacity: .4; cursor: not-allowed; }
+
+  .algo-desc {
+    max-width: 900px; width: 100%; background: #1a1a2e; border-radius: 12px;
+    border: 1px solid #2a2a3e; padding: 16px 24px; margin-bottom: 20px;
+    font-size: 14px; line-height: 1.7; color: #bbb;
+  }
+  .algo-desc h3 { color: #6c63ff; margin-bottom: 8px; }
+  .algo-desc .complexity { color: #ffd700; }
+
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px);
+    background: #ff6b6b; color: #fff; padding: 12px 28px; border-radius: 10px;
+    font-size: 14px; z-index: 999; transition: transform .3s ease;
+    box-shadow: 0 4px 20px rgba(255,107,107,.4);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .manual-hint {
+    text-align: center; color: #888; font-size: 13px; margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Sorting Visualizer</h1>
+<p class="subtitle">选择排序算法，观察排序过程，或手动拖拽体验排序</p>
+
+<div id="toast" class="toast"></div>
+
+<div class="mode-tabs">
+  <button class="active" id="tabAuto" onclick="setMode('auto')">自动演示</button>
+  <button id="tabManual" onclick="setMode('manual')">手动排序</button>
+</div>
+
+<div id="manualHint" class="manual-hint" style="display:none">点击两个柱子交换位置，或拖拽柱子到目标位置</div>
+
+<div class="controls">
+  <select id="algoSelect">
+    <option value="bubble">冒泡排序</option>
+    <option value="selection">选择排序</option>
+    <option value="insertion">插入排序</option>
+    <option value="quick">快速排序</option>
+    <option value="merge">归并排序</option>
+    <option value="heap">堆排序</option>
+    <option value="shell">希尔排序</option>
+  </select>
+  <label>数量 <input type="range" id="sizeRange" min="5" max="80" value="30" oninput="syncSize(this.value)"> <input type="number" id="sizeInput" min="5" max="80" value="30" style="width:48px" onchange="syncSizeFrom(this.value)"></label>
+  <label>速度 <input type="range" id="speedRange" min="1" max="100" value="50" oninput="syncSpeed(this.value)"> <input type="number" id="speedInput" min="1" max="100" value="50" style="width:48px" onchange="syncSpeedFrom(this.value)"></label>
+  <button onclick="generateNewArray()">生成新数组</button>
+  <button class="primary" id="startBtn" onclick="startSort()">开始排序</button>
+  <button id="stopBtn" onclick="stopSort()" disabled>停止</button>
+  <button id="resetBtn" onclick="resetToArray()" disabled>还原</button>
+</div>
+
+<div class="info-bar">
+  <span>比较次数: <b id="compareCount">0</b></span>
+  <span>交换次数: <b id="swapCount">0</b></span>
+  <span>耗时: <b id="timeElapsed">0 ms</b></span>
+  <span id="depthInfo"></span>
+</div>
+
+<div class="step-hint" id="stepHint"></div>
+
+<div id="container"></div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:linear-gradient(#6c63ff,#4834d4)"></div>未排序</div>
+  <div class="legend-item"><div class="legend-dot" style="background:rgba(108,99,255,.35);border:1px dashed #6c63ff"></div>当前区间</div>
+  <div class="legend-item"><div class="legend-dot" style="background:linear-gradient(#ff6b6b,#ee5a24)"></div>比较中</div>
+  <div class="legend-item"><div class="legend-dot" style="background:linear-gradient(#ffd700,#f39c12)"></div>交换中</div>
+  <div class="legend-item"><div class="legend-dot" style="background:linear-gradient(#e056fd,#be2edd)"></div>枢轴/关键</div>
+  <div class="legend-item"><div class="legend-dot" style="background:linear-gradient(#2ecc71,#27ae60)"></div>已排序</div>
+</div>
+
+<div class="algo-desc" id="algoDesc">
+  <h3>冒泡排序 Bubble Sort</h3>
+  <p>重复遍历数组，比较相邻元素，如果顺序错误就交换。每次遍历后最大元素"冒泡"到末尾。</p>
+  <p class="complexity">时间复杂度: O(n²) | 空间复杂度: O(1) | 稳定排序</p>
+</div>
+
+<script>
+const container = document.getElementById('container');
+const algoSelect = document.getElementById('algoSelect');
+const sizeRange = document.getElementById('sizeRange');
+const speedRange = document.getElementById('speedRange');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const resetBtn = document.getElementById('resetBtn');
+const compareCountEl = document.getElementById('compareCount');
+const swapCountEl = document.getElementById('swapCount');
+const timeElapsedEl = document.getElementById('timeElapsed');
+const algoDescEl = document.getElementById('algoDesc');
+const stepHintEl = document.getElementById('stepHint');
+const depthInfoEl = document.getElementById('depthInfo');
+const manualHintEl = document.getElementById('manualHint');
+const tabAuto = document.getElementById('tabAuto');
+const tabManual = document.getElementById('tabManual');
+const toastEl = document.getElementById('toast');
+
+let arr = [];
+let savedArray = [];
+let sorting = false;
+let stopFlag = false;
+let compares = 0;
+let swaps = 0;
+let mode = 'auto';
+let selectedIndex = -1;
+let dragIndex = -1;
+let isDragging = false;
+let dragEl = null;
+let dragStartX = 0;
+let dragOffsetX = 0;
+let dragOverIndex = -1;
+let hasMoved = false;
+
+const sizeInput = document.getElementById('sizeInput');
+const speedInput = document.getElementById('speedInput');
+
+function syncSize(v) { sizeInput.value = v; sizeRange.value = v; }
+function syncSpeed(v) { speedInput.value = v; speedRange.value = v; }
+function syncSizeFrom(v) {
+  v = Math.max(5, Math.min(80, parseInt(v) || 5));
+  syncSize(v);
+}
+function syncSpeedFrom(v) {
+  v = Math.max(1, Math.min(100, parseInt(v) || 1));
+  syncSpeed(v);
+}
+
+const descriptions = {
+  bubble: '<h3>冒泡排序 Bubble Sort</h3><p>重复遍历数组，比较相邻元素，如果顺序错误就交换。每次遍历后最大元素"冒泡"到末尾。</p><p class="complexity">时间复杂度: O(n²) | 空间复杂度: O(1) | 稳定排序</p>',
+  selection: '<h3>选择排序 Selection Sort</h3><p>每次从未排序区间找到最小元素，放到已排序区间末尾。</p><p class="complexity">时间复杂度: O(n²) | 空间复杂度: O(1) | 不稳定排序</p>',
+  insertion: '<h3>插入排序 Insertion Sort</h3><p>逐个取出元素，插入到已排序部分的正确位置，类似打牌时的整理手牌。</p><p class="complexity">时间复杂度: O(n²) | 空间复杂度: O(1) | 稳定排序</p>',
+  quick: '<h3>快速排序 Quick Sort</h3><p>选取枢轴，将数组分为小于和大于枢轴的两部分，递归排序子数组。<br>紫色标记枢轴，蓝色背景标记当前处理区间。</p><p class="complexity">平均时间: O(n log n) | 最坏: O(n²) | 空间: O(log n) | 不稳定</p>',
+  merge: '<h3>归并排序 Merge Sort</h3><p>将数组递归拆分为两半，分别排序后再合并。经典的分治策略。<br>蓝色背景标记当前合并区间，观察两个有序子数组如何合并。</p><p class="complexity">时间复杂度: O(n log n) | 空间复杂度: O(n) | 稳定排序</p>',
+  heap: '<h3>堆排序 Heap Sort</h3><p>利用最大堆数据结构，反复提取堆顶最大元素放到数组末尾。<br>紫色标记堆顶，蓝色标记当前堆范围。</p><p class="complexity">时间复杂度: O(n log n) | 空间复杂度: O(1) | 不稳定排序</p>',
+  shell: '<h3>希尔排序 Shell Sort</h3><p>插入排序的改进版，通过逐步缩小间隔对子序列进行插入排序。<br>蓝色标记当前 gap 下的比较对。</p><p class="complexity">时间复杂度: O(n^1.3) | 空间复杂度: O(1) | 不稳定排序</p>'
+};
+
+let toastTimer = null;
+function showToast(msg, duration = 2000) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), duration);
+}
+
+function getDelay() {
+  const s = parseInt(speedRange.value);
+  return Math.max(1, 200 - s * 2);
+}
+
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function setHint(text) {
+  stepHintEl.textContent = text;
+}
+
+function setMode(m) {
+  if (sorting) {
+    showToast('排序进行中，请先停止再切换模式');
+    return;
+  }
+  mode = m;
+  tabAuto.classList.toggle('active', m === 'auto');
+  tabManual.classList.toggle('active', m === 'manual');
+  algoSelect.disabled = m === 'manual';
+  manualHintEl.style.display = m === 'manual' ? 'block' : 'none';
+  stepHintEl.textContent = '';
+  depthInfoEl.textContent = '';
+  startBtn.disabled = m === 'manual';
+  selectedIndex = -1;
+  renderBars();
+}
+
+function generateNewArray() {
+  if (sorting) {
+    showToast('排序进行中，请先停止');
+    return;
+  }
+  const n = parseInt(sizeRange.value);
+  arr = [];
+  for (let i = 0; i < n; i++) arr.push(Math.floor(Math.random() * 95) + 5);
+  savedArray = [...arr];
+  selectedIndex = -1;
+  compares = 0; swaps = 0;
+  timeElapsedEl.textContent = '0 ms';
+  updateStats();
+  setHint('');
+  depthInfoEl.textContent = '';
+  resetBtn.disabled = true;
+  renderBars();
+}
+
+function resetFromArray() {
+  if (!savedArray.length) { generateNewArray(); return; }
+  arr = [...savedArray];
+  selectedIndex = -1;
+  compares = 0; swaps = 0;
+  timeElapsedEl.textContent = '0 ms';
+  updateStats();
+  setHint('');
+  depthInfoEl.textContent = '';
+  renderBars();
+}
+
+function resetToArray() {
+  if (sorting) {
+    showToast('排序进行中，请先停止');
+    return;
+  }
+  if (!savedArray.length) return;
+  arr = [...savedArray];
+  selectedIndex = -1;
+  compares = 0; swaps = 0;
+  timeElapsedEl.textContent = '0 ms';
+  updateStats();
+  setHint('');
+  depthInfoEl.textContent = '';
+  resetBtn.disabled = true;
+  renderBars();
+  showToast('已还原到初始乱序');
+}
+
+function updateStats() {
+  compareCountEl.textContent = compares;
+  swapCountEl.textContent = swaps;
+}
+
+function renderBars(states = {}) {
+  container.innerHTML = '';
+  const n = arr.length;
+  const containerW = container.clientWidth - 20;
+  const gap = Math.max(1, Math.floor(n > 50 ? 1 : 3));
+  const barW = Math.max(2, (containerW - (n - 1) * gap) / n);
+  const maxVal = Math.max(...arr, 1);
+  const maxH = container.clientHeight - 40;
+
+  arr.forEach((val, i) => {
+    const w = document.createElement('div');
+    w.className = 'bar-wrapper';
+    if (states.range && i >= states.range[0] && i <= states.range[1]) w.classList.add('range');
+    if (states.comparing && states.comparing.includes(i)) w.classList.add('comparing');
+    if (states.swapping && states.swapping.includes(i)) w.classList.add('swapping');
+    if (states.sorted && states.sorted.includes(i)) w.classList.add('sorted');
+    if (states.pivot === i) w.classList.add('pivot');
+    if (i === selectedIndex) w.classList.add('selected');
+
+    w.style.left = (10 + i * (barW + gap)) + 'px';
+    w.style.width = barW + 'px';
+
+    const label = document.createElement('div');
+    label.className = 'bar-label';
+    if (n <= 30) label.textContent = val;
+
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.height = ((val / maxVal) * maxH) + 'px';
+
+    w.appendChild(label);
+    w.appendChild(bar);
+    w.dataset.index = i;
+    container.appendChild(w);
+
+    if (mode === 'manual' && !sorting) {
+      w.addEventListener('mousedown', onPointerDown);
+      w.addEventListener('touchstart', onTouchStart, { passive: false });
+    }
+  });
+}
+
+function onTouchStart(e) {
+  e.preventDefault();
+  const t = e.touches[0];
+  onPointerDown({ clientX: t.clientX, clientY: t.clientY, currentTarget: e.currentTarget });
+}
+
+function onPointerDown(e) {
+  if (sorting) return;
+  const idx = parseInt(e.currentTarget.dataset.index);
+  dragIndex = idx;
+  dragEl = e.currentTarget;
+  hasMoved = false;
+  dragStartX = e.clientX;
+  dragOffsetX = e.clientX - dragEl.getBoundingClientRect().left;
+
+  document.addEventListener('mousemove', onPointerMove);
+  document.addEventListener('mouseup', onPointerUp);
+  document.addEventListener('touchmove', onTouchMove, { passive: false });
+  document.addEventListener('touchend', onTouchEnd);
+}
+
+function onTouchMove(e) {
+  e.preventDefault();
+  onPointerMove({ clientX: e.touches[0].clientX });
+}
+
+function onPointerMove(e) {
+  if (dragIndex < 0 || !dragEl) return;
+  const dx = Math.abs(e.clientX - dragStartX);
+  if (dx > 3) {
+    hasMoved = true;
+    isDragging = true;
+    dragEl.classList.add('dragging');
+  }
+  if (!isDragging) return;
+
+  const containerRect = container.getBoundingClientRect();
+  const n = arr.length;
+  const containerW = container.clientWidth - 20;
+  const gap = Math.max(1, Math.floor(n > 50 ? 1 : 3));
+  const barW = Math.max(2, (containerW - (n - 1) * gap) / n);
+  const step = barW + gap;
+  const newLeft = e.clientX - containerRect.left - dragOffsetX;
+  dragEl.style.transition = 'none';
+  dragEl.style.left = Math.max(10, Math.min(newLeft, containerW + 10 - barW)) + 'px';
+
+  const center = newLeft + barW / 2;
+  const targetIdx = Math.round((center - 10 - barW / 2) / step);
+  const clampedIdx = Math.max(0, Math.min(n - 1, targetIdx));
+
+  if (clampedIdx !== dragOverIndex) {
+    if (dragOverIndex >= 0 && dragOverIndex !== dragIndex) {
+      const prev = container.querySelector(`.bar-wrapper[data-index="${dragOverIndex}"]`);
+      if (prev) prev.classList.remove('drag-over');
+    }
+    dragOverIndex = clampedIdx;
+    if (dragOverIndex !== dragIndex) {
+      const target = container.querySelector(`.bar-wrapper[data-index="${dragOverIndex}"]`);
+      if (target) target.classList.add('drag-over');
+    }
+  }
+}
+
+function onTouchEnd() { onPointerUp(); }
+
+function onPointerUp() {
+  document.removeEventListener('mousemove', onPointerMove);
+  document.removeEventListener('mouseup', onPointerUp);
+  document.removeEventListener('touchmove', onTouchMove);
+  document.removeEventListener('touchend', onTouchEnd);
+  if (dragIndex < 0) return;
+
+  if (isDragging && dragOverIndex >= 0 && dragOverIndex !== dragIndex) {
+    const val = arr.splice(dragIndex, 1)[0];
+    arr.splice(dragOverIndex, 0, val);
+    swaps++;
+    updateStats();
+    renderBars();
+    checkManualSorted();
+  } else if (!hasMoved) {
+    if (selectedIndex === -1) {
+      selectedIndex = dragIndex;
+      renderBars();
+    } else if (selectedIndex === dragIndex) {
+      selectedIndex = -1;
+      renderBars();
+    } else {
+      [arr[selectedIndex], arr[dragIndex]] = [arr[dragIndex], arr[selectedIndex]];
+      swaps++;
+      selectedIndex = -1;
+      updateStats();
+      renderBars();
+      checkManualSorted();
+    }
+  }
+
+  if (dragEl) dragEl.classList.remove('dragging');
+  document.querySelectorAll('.bar-wrapper.drag-over').forEach(w => w.classList.remove('drag-over'));
+  dragIndex = -1; dragEl = null; isDragging = false; dragOverIndex = -1; hasMoved = false;
+}
+
+function checkManualSorted() {
+  for (let i = 0; i < arr.length - 1; i++) {
+    if (arr[i] > arr[i + 1]) return;
+  }
+  renderBars({ sorted: arr.map((_, i) => i) });
+  showToast('排序完成！');
+}
+
+async function celebrateFinish() {
+  const n = arr.length;
+  const delay = Math.max(5, Math.floor(500 / n));
+  for (let i = 0; i < n; i++) {
+    renderBars({ sorted: Array.from({ length: i + 1 }, (_, k) => k) });
+    await sleep(delay);
+  }
+}
+
+function updateControlStates(running) {
+  startBtn.disabled = running || mode === 'manual';
+  stopBtn.disabled = !running;
+  resetBtn.disabled = running;
+  tabAuto.disabled = running;
+  tabManual.disabled = running;
+  algoSelect.disabled = running || mode === 'manual';
+  sizeRange.disabled = running;
+  sizeInput.disabled = running;
+}
+
+async function startSort() {
+  if (sorting) return;
+  if (mode === 'manual') return;
+  if (arr.length === 0) { generateNewArray(); return; }
+
+  resetFromArray();
+  sorting = true;
+  stopFlag = false;
+  updateControlStates(true);
+  const t0 = performance.now();
+
+  const algo = algoSelect.value;
+  switch (algo) {
+    case 'bubble': await bubbleSort(); break;
+    case 'selection': await selectionSort(); break;
+    case 'insertion': await insertionSort(); break;
+    case 'quick': await quickSort(0, arr.length - 1, 0); break;
+    case 'merge': await mergeSort(0, arr.length - 1, 0); break;
+    case 'heap': await heapSort(); break;
+    case 'shell': await shellSort(); break;
+  }
+
+  if (!stopFlag) {
+    const elapsed = (performance.now() - t0).toFixed(0);
+    timeElapsedEl.textContent = elapsed + ' ms';
+    setHint('');
+    depthInfoEl.textContent = '';
+    await celebrateFinish();
+    showToast('排序完成！可点击「还原」回到初始乱序');
+  } else {
+    setHint('已停止');
+  }
+
+  sorting = false;
+  stopFlag = false;
+  resetBtn.disabled = false;
+  updateControlStates(false);
+}
+
+function stopSort() {
+  if (!sorting) return;
+  stopFlag = true;
+  showToast('正在停止...');
+}
+
+async function bubbleSort() {
+  const n = arr.length;
+  const sorted = [];
+  for (let i = 0; i < n - 1; i++) {
+    let swapped = false;
+    setHint(`第 ${i + 1} 轮遍历，已确认末尾 ${sorted.length} 个元素`);
+    for (let j = 0; j < n - 1 - i; j++) {
+      if (stopFlag) return;
+      compares++;
+      updateStats();
+      renderBars({ comparing: [j, j + 1], range: [0, n - 1 - i], sorted });
+      await sleep(getDelay());
+      if (arr[j] > arr[j + 1]) {
+        [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+        swaps++;
+        swapped = true;
+        updateStats();
+        renderBars({ swapping: [j, j + 1], range: [0, n - 1 - i], sorted });
+        await sleep(getDelay());
+      }
+    }
+    sorted.push(n - 1 - i);
+    if (!swapped) {
+      setHint('无交换，提前结束！');
+      break;
+    }
+  }
+  sorted.push(0);
+}
+
+async function selectionSort() {
+  const n = arr.length;
+  const sorted = [];
+  for (let i = 0; i < n - 1; i++) {
+    let minIdx = i;
+    setHint(`第 ${i + 1} 轮：从 [${i}..${n - 1}] 找最小值，紫色为当前最小`);
+    for (let j = i + 1; j < n; j++) {
+      if (stopFlag) return;
+      compares++;
+      updateStats();
+      renderBars({ comparing: [minIdx, j], pivot: minIdx, range: [i, n - 1], sorted });
+      await sleep(getDelay());
+      if (arr[j] < arr[minIdx]) minIdx = j;
+    }
+    if (minIdx !== i) {
+      setHint(`找到最小值 ${arr[minIdx]} 在位置 ${minIdx}，交换到位置 ${i}`);
+      [arr[i], arr[minIdx]] = [arr[minIdx], arr[i]];
+      swaps++;
+      updateStats();
+      renderBars({ swapping: [i, minIdx], range: [i, n - 1], sorted });
+      await sleep(getDelay());
+    }
+    sorted.push(i);
+  }
+  sorted.push(n - 1);
+}
+
+async function insertionSort() {
+  const n = arr.length;
+  const sorted = [];
+  for (let i = 1; i < n; i++) {
+    const key = arr[i];
+    let j = i;
+    setHint(`插入元素 ${key}（位置 ${i}）到已排序区间 [0..${i - 1}]`);
+    while (j > 0) {
+      if (stopFlag) return;
+      compares++;
+      updateStats();
+      renderBars({ comparing: [j - 1, j], range: [0, i], sorted });
+      await sleep(getDelay());
+      if (arr[j - 1] > arr[j]) {
+        [arr[j - 1], arr[j]] = [arr[j], arr[j - 1]];
+        swaps++;
+        updateStats();
+        renderBars({ swapping: [j - 1, j], range: [0, i], sorted });
+        await sleep(getDelay());
+        j--;
+      } else {
+        break;
+      }
+    }
+    sorted.push(i);
+  }
+}
+
+async function quickSort(lo, hi, depth) {
+  if (lo >= hi || stopFlag) {
+    if (lo === hi && lo >= 0 && lo < arr.length) {
+      setHint(`递归深度 ${depth}：单元素区间 [${lo}]，已就位`);
+    }
+    return;
+  }
+  setHint(`递归深度 ${depth}：处理区间 [${lo}..${hi}]，选择枢轴 ${arr[hi]}`);
+  depthInfoEl.textContent = `递归深度: ${depth}`;
+  await sleep(getDelay());
+
+  const pivotIdx = await partition(lo, hi, depth);
+  if (stopFlag) return;
+
+  setHint(`枢轴 ${arr[pivotIdx]} 就位于 ${pivotIdx}，分别排序左右两部分`);
+  renderBars({ pivot: pivotIdx, range: [lo, hi] });
+  await sleep(getDelay());
+
+  await quickSort(lo, pivotIdx - 1, depth + 1);
+  await quickSort(pivotIdx + 1, hi, depth + 1);
+}
+
+async function partition(lo, hi, depth) {
+  const pivot = arr[hi];
+  let i = lo - 1;
+  for (let j = lo; j < hi; j++) {
+    if (stopFlag) return lo;
+    compares++;
+    updateStats();
+    setHint(`深度 ${depth}：比较 ${arr[j]} 与枢轴 ${pivot}，i=${i + 1}`);
+    renderBars({ comparing: [j], pivot: hi, range: [lo, hi] });
+    await sleep(getDelay());
+    if (arr[j] < pivot) {
+      i++;
+      if (i !== j) {
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+        swaps++;
+        updateStats();
+        setHint(`${arr[j]} < ${pivot}，交换位置 ${i} 和 ${j}`);
+        renderBars({ swapping: [i, j], pivot: hi, range: [lo, hi] });
+        await sleep(getDelay());
+      }
+    }
+  }
+  [arr[i + 1], arr[hi]] = [arr[hi], arr[i + 1]];
+  swaps++;
+  updateStats();
+  setHint(`枢轴 ${pivot} 放到位置 ${i + 1}`);
+  return i + 1;
+}
+
+async function mergeSort(lo, hi, depth) {
+  if (lo >= hi || stopFlag) return;
+  const mid = Math.floor((lo + hi) / 2);
+  setHint(`深度 ${depth}：分割 [${lo}..${hi}] → [${lo}..${mid}] 和 [${mid + 1}..${hi}]`);
+  depthInfoEl.textContent = `递归深度: ${depth}`;
+  renderBars({ range: [lo, hi] });
+  await sleep(getDelay());
+
+  await mergeSort(lo, mid, depth + 1);
+  if (stopFlag) return;
+  await mergeSort(mid + 1, hi, depth + 1);
+  if (stopFlag) return;
+
+  setHint(`深度 ${depth}：合并 [${lo}..${mid}] 和 [${mid + 1}..${hi}]`);
+  await merge(lo, mid, hi);
+}
+
+async function merge(lo, mid, hi) {
+  const left = arr.slice(lo, mid + 1);
+  const right = arr.slice(mid + 1, hi + 1);
+  let i = 0, j = 0, k = lo;
+  while (i < left.length && j < right.length) {
+    if (stopFlag) return;
+    compares++;
+    updateStats();
+    setHint(`合并中：比较 ${left[i]} 和 ${right[j]}`);
+    renderBars({ comparing: [lo + i, mid + 1 + j], range: [lo, hi] });
+    await sleep(getDelay());
+    if (left[i] <= right[j]) {
+      arr[k] = left[i]; i++;
+    } else {
+      arr[k] = right[j]; j++;
+      swaps++;
+      updateStats();
+    }
+    setHint(`放入 ${arr[k]} 到位置 ${k}`);
+    renderBars({ swapping: [k], range: [lo, hi] });
+    await sleep(getDelay());
+    k++;
+  }
+  while (i < left.length) {
+    if (stopFlag) return;
+    arr[k] = left[i]; i++; k++;
+    renderBars({ swapping: [k - 1], range: [lo, hi] });
+    await sleep(getDelay());
+  }
+  while (j < right.length) {
+    if (stopFlag) return;
+    arr[k] = right[j]; j++; k++;
+    renderBars({ swapping: [k - 1], range: [lo, hi] });
+    await sleep(getDelay());
+  }
+}
+
+async function heapSort() {
+  const n = arr.length;
+  setHint(`建堆阶段：从 ${Math.floor(n / 2) - 1} 到 0 逐个调整`);
+  for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+    await heapify(n, i, []);
+    if (stopFlag) return;
+  }
+  setHint('建堆完成，开始提取最大值');
+  for (let i = n - 1; i > 0; i--) {
+    if (stopFlag) return;
+    setHint(`提取堆顶 ${arr[0]}，交换到位置 ${i}`);
+    [arr[0], arr[i]] = [arr[i], arr[0]];
+    swaps++;
+    updateStats();
+    renderBars({ swapping: [0, i], range: [0, i - 1], sorted: rangeToSorted(i, n) });
+    await sleep(getDelay());
+    setHint(`调整堆 [0..${i - 1}]`);
+    await heapify(i, 0, rangeToSorted(i, n));
+  }
+}
+
+function rangeToSorted(from, to) {
+  const s = [];
+  for (let i = from; i < to; i++) s.push(i);
+  return s;
+}
+
+async function heapify(n, i, sorted) {
+  let largest = i;
+  const l = 2 * i + 1, r = 2 * i + 2;
+  if (l < n) {
+    compares++;
+    updateStats();
+    setHint(`堆调整：比较节点 ${i}(${arr[i]}) 和左子 ${l}(${arr[l]})`);
+    renderBars({ comparing: [largest, l], pivot: 0, range: [0, n - 1], sorted });
+    await sleep(getDelay());
+    if (arr[l] > arr[largest]) largest = l;
+  }
+  if (r < n) {
+    compares++;
+    updateStats();
+    setHint(`堆调整：比较当前最大 ${largest}(${arr[largest]}) 和右子 ${r}(${arr[r]})`);
+    renderBars({ comparing: [largest, r], pivot: 0, range: [0, n - 1], sorted });
+    await sleep(getDelay());
+    if (arr[r] > arr[largest]) largest = r;
+  }
+  if (largest !== i) {
+    setHint(`交换 ${i}(${arr[i]}) 和 ${largest}(${arr[largest]})`);
+    [arr[i], arr[largest]] = [arr[largest], arr[i]];
+    swaps++;
+    updateStats();
+    renderBars({ swapping: [i, largest], pivot: 0, range: [0, n - 1], sorted });
+    await sleep(getDelay());
+    await heapify(n, largest, sorted);
+  }
+}
+
+async function shellSort() {
+  const n = arr.length;
+  let gap = Math.floor(n / 2);
+  while (gap > 0) {
+    setHint(`gap = ${gap}，对间隔为 ${gap} 的子序列进行插入排序`);
+    for (let i = gap; i < n; i++) {
+      let j = i;
+      while (j >= gap) {
+        if (stopFlag) return;
+        compares++;
+        updateStats();
+        renderBars({ comparing: [j - gap, j], range: [0, n - 1] });
+        await sleep(getDelay());
+        if (arr[j - gap] > arr[j]) {
+          [arr[j - gap], arr[j]] = [arr[j], arr[j - gap]];
+          swaps++;
+          updateStats();
+          renderBars({ swapping: [j - gap, j], range: [0, n - 1] });
+          await sleep(getDelay());
+          j -= gap;
+        } else {
+          break;
+        }
+      }
+    }
+    gap = Math.floor(gap / 2);
+  }
+}
+
+algoSelect.addEventListener('change', () => {
+  algoDescEl.innerHTML = descriptions[algoSelect.value] || '';
+});
+
+generateNewArray();
+</script>
+</body>
+</html>

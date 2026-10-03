@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="author" content="傅新瑞">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#04030c">
+<title>物态变化 3D · 固液气的微观世界</title>
+<style>
+  :root{--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)}
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;color:#fff;
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+  canvas#gl{position:fixed;inset:0;display:block;cursor:grab}
+  canvas#gl:active{cursor:grabbing}
+  .mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:2}
+  #bar{position:absolute;left:0;top:0;height:4px;width:0;background:linear-gradient(90deg,#0ff,#a6f,#f0c,#f80);
+    box-shadow:0 0 12px #f0f}
+  #tl{position:absolute;left:3.2vw;top:4vh}
+  #tl .lab{font:700 13px "SF Mono",Menlo,monospace;letter-spacing:4px;color:hsl(190,100%,65%)}
+  #tl .ttl{font-size:18px;font-weight:600;color:rgba(255,255,255,.85);margin-top:6px}
+  #tr{position:absolute;right:3.2vw;top:4vh;text-align:right}
+  #clock{font:600 15px "SF Mono",Menlo,monospace;color:rgba(255,255,255,.75)}
+  #chip{font-size:15px;font-weight:700;margin-top:8px}
+  #readout{position:absolute;left:3.2vw;top:17vh}
+  #readout .k{font:600 11px "SF Mono",Menlo,monospace;letter-spacing:3px;color:rgba(255,255,255,.45)}
+  #temp{font:800 52px "SF Mono",Menlo,monospace;margin:2px 0 16px;text-shadow:-2px 0 rgba(255,0,90,.7),2px 0 rgba(0,225,255,.7),0 0 26px currentColor}
+  #phase{display:inline-block;margin-top:6px;padding:5px 14px;border-radius:20px;font-size:17px;font-weight:700;
+    border:1px solid currentColor;background:rgba(10,10,30,.55);box-shadow:0 0 16px currentColor inset}
+  #lowp{margin-top:12px;font:700 12px "SF Mono",Menlo,monospace;letter-spacing:2px;color:#d9a6ff;opacity:0}
+  #panel{position:absolute;right:3.2vw;top:17vh;width:min(30vw,440px)}
+  #pno{font:700 13px "SF Mono",Menlo,monospace;letter-spacing:4px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.18)}
+  #pzh{font-size:min(5.6vw,76px);font-weight:900;margin-top:14px;line-height:1.05;
+    text-shadow:-3px 0 rgba(255,0,90,.8),3px 0 rgba(0,225,255,.8),0 0 30px var(--hc)}
+  #pen{font:700 18px "SF Mono",Menlo,monospace;letter-spacing:5px;margin-top:6px;opacity:.75}
+  #pbl{list-style:none;padding:0;margin:22px 0 0}
+  #pbl li{font-size:17px;font-weight:600;margin:12px 0;opacity:0;transform:translateX(24px);transition:opacity .5s,transform .5s}
+  #pbl li::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:12px;vertical-align:middle;
+    background:var(--hc);box-shadow:0 0 10px var(--hc)}
+  #pbl.show li{opacity:1;transform:none}
+  .bars{margin-top:28px}
+  .bar{display:flex;align-items:center;gap:12px;margin:10px 0;font-size:13px;color:rgba(255,255,255,.75)}
+  .bar span:first-child{width:7.5em}
+  .bar .tr{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+  .bar .tr i{display:block;height:100%;width:0;border-radius:3px}
+  .bar b{width:3em;text-align:right;font:600 12px "SF Mono",Menlo,monospace}
+  #panel.glitch{animation:glitch .45s steps(6)}
+  @keyframes glitch{0%{transform:translate(8px,0);filter:hue-rotate(90deg);clip-path:inset(10% 0 40% 0)}
+    25%{transform:translate(-6px,2px);clip-path:inset(50% 0 10% 0)}50%{transform:translate(4px,-2px);filter:hue-rotate(-60deg);clip-path:inset(0 0 70% 0)}
+    75%{transform:translate(-2px,0);clip-path:inset(30% 0 0 0)}100%{transform:none;filter:none;clip-path:inset(0)}}
+  #sub{position:absolute;left:50%;bottom:11vh;transform:translateX(-50%);padding:10px 26px;border-radius:30px;
+    background:rgba(6,8,24,.62);border:1px solid rgba(160,120,255,.35);font-size:min(2.2vw,22px);font-weight:600;
+    white-space:nowrap;opacity:0;box-shadow:0 0 24px rgba(140,80,255,.25)}
+  #intro,#outro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  #intro h1{margin:0;font-size:min(12vw,130px);font-weight:900;letter-spacing:.08em;
+    background:linear-gradient(90deg,#0ff,#a6f,#f0c,#f80,#0ff);background-size:300% 100%;-webkit-background-clip:text;
+    background-clip:text;color:transparent;animation:hue 4s linear infinite;filter:drop-shadow(0 0 30px rgba(180,80,255,.7))}
+  #intro p{font:600 16px "SF Mono",Menlo,monospace;letter-spacing:.5em;color:#9cf;margin-top:10px}
+  #outro div{opacity:0;transition:opacity 1s,transform 1s;transform:translateY(16px)}
+  #outro .o1{font-size:min(8vw,96px);font-weight:900;text-shadow:-4px 0 rgba(255,0,90,.8),4px 0 rgba(0,225,255,.8),0 0 40px #c4f}
+  #outro .o2{font-size:min(4.4vw,50px);font-weight:900;margin-top:26px}
+  #outro .o2 .a{color:hsl(30,100%,80%);text-shadow:0 0 26px hsl(20,100%,55%)}
+  #outro .o2 .b{color:hsl(190,100%,85%);text-shadow:0 0 26px hsl(195,100%,55%)}
+  #outro .o3{font-size:min(2.4vw,26px);margin-top:26px;color:rgba(230,240,255,.88)}
+  #outro .o4{font-size:min(2.4vw,26px);margin-top:60px;letter-spacing:10px;color:hsl(300,100%,80%);font-weight:700}
+  #outro div.on{opacity:1;transform:none}
+  #diag{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;
+    padding-bottom:9vh;box-sizing:border-box;-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);
+    background:radial-gradient(ellipse at 50% 55%,rgba(3,3,14,.9) 0%,rgba(3,3,14,.72) 50%,rgba(3,3,14,.35) 100%)}
+  #dt{font-size:min(4vw,44px);font-weight:900;letter-spacing:.08em;
+    text-shadow:-3px 0 rgba(255,0,90,.7),3px 0 rgba(0,225,255,.7),0 0 26px #a6f}
+  #de{font-size:12px;font-weight:700;letter-spacing:.6em;color:#cfe;opacity:.6;margin-top:6px}
+  #dk{display:flex;gap:28px;margin-top:12px;font-size:15px;font-weight:700;opacity:0}
+  #dk .w{color:hsl(26,100%,64%);text-shadow:0 0 14px hsla(26,100%,50%,.6)}
+  #dk .c{color:hsl(212,100%,70%);text-shadow:0 0 14px hsla(212,100%,55%,.6)}
+  #dsvg{width:min(88vw,calc(62vh * 1000 / 720));height:auto;margin-top:1vh;overflow:visible;
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+  #dsvg .dl{stroke-dasharray:14 9;animation:dash 1.1s linear infinite}
+  #dsvg .mono{font-family:"SF Mono",Menlo,monospace}
+  @keyframes dash{to{stroke-dashoffset:-23}}
+  #dbody{display:flex;align-items:center;gap:3vw}
+  #dinfo,#dtools{display:none}
+  #diag.pm{pointer-events:auto;padding-bottom:2vh}
+  #diag.pm .hit{cursor:pointer}
+  #diag.pm #dsvg{width:min(60vw,calc(58vh * 1000 / 720))}
+  #diag.pm #dinfo{display:block;width:min(300px,26vw);padding:18px 20px;border-radius:16px;background:rgba(8,10,28,.82);
+    border:1px solid rgba(160,140,255,.28);box-shadow:0 0 30px rgba(120,80,255,.18)}
+  #dinfo .ih{font-size:30px;font-weight:900;text-shadow:0 0 20px currentColor}
+  #dinfo .ih small{font:700 12px "SF Mono",Menlo,monospace;letter-spacing:3px;opacity:.75;vertical-align:middle;margin-left:6px}
+  #dinfo .ir{margin-top:8px;font-size:15px;font-weight:700;color:rgba(235,240,255,.85)}
+  #dinfo ul{list-style:none;padding:0;margin:14px 0 0}
+  #dinfo li{font-size:14px;line-height:1.5;margin:8px 0;color:rgba(235,240,255,.9);padding-left:14px;position:relative}
+  #dinfo li::before{content:"";position:absolute;left:0;top:.6em;width:6px;height:6px;border-radius:50%;background:#a8f;box-shadow:0 0 8px #a8f}
+  #dinfo .kb{margin-top:14px;font:12px/1.8 "SF Mono",Menlo,monospace;color:rgba(200,220,255,.6)}
+  #diag.pm #dtools{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+  #dtools button,#dinfo .go{background:rgba(255,255,255,.06);color:#dff;border:1px solid rgba(120,200,255,.3);border-radius:10px;
+    padding:8px 14px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;touch-action:manipulation}
+  #dinfo .go{margin-top:14px;width:100%;border-color:rgba(255,255,255,.35)}
+  #dtools button.on{background:linear-gradient(90deg,rgba(0,220,255,.35),rgba(255,0,200,.35));border-color:#fff;color:#fff}
+  @media (hover:hover){#dtools button:hover,#dinfo .go:hover{background:rgba(0,220,255,.18);border-color:rgba(0,220,255,.7)}}
+  #diag.pt #dsvg{width:min(94vw,calc(60vh * 760 / 1060))}
+  #diag.pm.pt #dbody{flex-direction:column;gap:8px}
+  #diag.pm.pt #dsvg{width:min(80vw,calc(44vh * 760 / 1060))}
+  #diag.pm.pt #dinfo{width:auto;max-width:calc(100vw - 32px);box-sizing:border-box;padding:12px 16px}
+  #diag.pm.pt #dinfo .ih{font-size:22px} #diag.pm.pt #dinfo li{font-size:13px;margin:4px 0} #diag.pm.pt #dinfo ul{margin-top:8px}
+  #diag.pm.pt #dtools button{padding:7px 10px;font-size:13px}
+  #diag.pt #dt{font-size:24px} #diag.pt #de{font-size:10px;letter-spacing:.4em}
+  #diag.pt #dk{flex-direction:column;gap:4px;font-size:12px;align-items:center}
+  #fade{position:fixed;inset:0;background:#000;pointer-events:none;z-index:3}
+  #vig{position:fixed;inset:0;pointer-events:none;z-index:1;
+    background:radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(0,0,0,.65) 100%),
+      repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px)}
+  #warp{position:fixed;inset:0;z-index:4;pointer-events:none;opacity:0;visibility:hidden;display:flex;align-items:center;
+    justify-content:center;-webkit-backdrop-filter:blur(12px) saturate(1.4);backdrop-filter:blur(12px) saturate(1.4);--k:0}
+  #warp::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 4px)}
+  #warp::after{content:"";position:absolute;left:0;right:0;height:22vh;top:-22vh;
+    background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--hc) 22%,transparent),transparent);animation:sweep 1.1s linear infinite}
+  @keyframes sweep{to{transform:translateY(144vh)}}
+  #warp .wc{position:relative;text-align:center;transform:scale(calc(1.14 - .14 * var(--k)));
+    letter-spacing:calc(.5em - .4em * var(--k))}
+  #wno{font:700 14px "SF Mono",Menlo,monospace;letter-spacing:6px;color:var(--hc)}
+  #wzh{font-size:min(14vw,112px);font-weight:900;line-height:1.1;margin-top:10px;
+    text-shadow:-4px 0 rgba(255,0,90,.8),4px 0 rgba(0,225,255,.8),0 0 40px var(--hc)}
+  #wen{font:700 16px "SF Mono",Menlo,monospace;letter-spacing:.5em;margin-top:8px;color:var(--hc);opacity:.85}
+  #wpg{width:min(260px,60vw);height:3px;margin:26px auto 0;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+  #wpg i{display:block;height:100%;width:0;background:var(--hc);box-shadow:0 0 10px var(--hc)}
+  #ui{position:fixed;left:50%;bottom:calc(16px + var(--sb));transform:translateX(-50%);display:flex;gap:6px;align-items:center;
+    padding:8px 12px;border-radius:14px;background:rgba(8,10,26,.78);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+    border:1px solid rgba(120,200,255,.25);box-shadow:0 0 30px rgba(0,200,255,.18);transition:opacity .3s,transform .3s;z-index:5;
+    max-width:96vw;flex-wrap:wrap;justify-content:center}
+  #ui.hide{opacity:0;pointer-events:none;transform:translate(-50%,14px)}
+  #chaps{position:relative;display:flex;gap:4px;flex-wrap:wrap}
+  #ui button,#ui a{background:rgba(255,255,255,.06);color:#dff;border:1px solid rgba(120,200,255,.25);border-radius:9px;
+    padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;transition:.2s;text-decoration:none;touch-action:manipulation}
+  @media (hover:hover){#ui button:hover,#ui a:hover{background:rgba(0,220,255,.18);border-color:rgba(0,220,255,.7);box-shadow:0 0 12px rgba(0,220,255,.45)}}
+  #ui button:active,#ui a:active{background:rgba(0,220,255,.25)}
+  #ui button.on{background:linear-gradient(90deg,rgba(0,220,255,.35),rgba(255,0,200,.35));border-color:#fff;color:#fff}
+  #ui .sep{width:1px;height:22px;background:rgba(255,255,255,.15);margin:0 4px}
+  #time{font:12px "SF Mono",Menlo,monospace;color:#9ef;min-width:92px;text-align:center}
+  #start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;
+    background:radial-gradient(ellipse at 50% 45%,#1a0b3a 0%,#05040f 60%,#000 100%)}
+  #start h1{margin:0;font-size:min(13vw,120px);font-weight:900;letter-spacing:.08em;
+    background:linear-gradient(90deg,#0ff,#a6f,#f0c,#f80,#0ff);background-size:300% 100%;-webkit-background-clip:text;
+    background-clip:text;color:transparent;animation:hue 4s linear infinite;filter:drop-shadow(0 0 24px rgba(180,80,255,.6))}
+  #start p{margin:10px 0 36px;color:#9cf;letter-spacing:.3em;font:14px "SF Mono",Menlo,monospace}
+  #start button{font-size:20px;padding:14px 42px;border-radius:40px;border:1px solid #0ff;color:#fff;cursor:pointer;
+    background:linear-gradient(90deg,rgba(0,255,255,.18),rgba(255,0,200,.18));box-shadow:0 0 30px rgba(0,255,255,.35),inset 0 0 20px rgba(255,0,200,.2);font-family:inherit}
+  @media (hover:hover){#start button:hover{box-shadow:0 0 50px rgba(0,255,255,.6),inset 0 0 30px rgba(255,0,200,.35)}}
+  #start button.pick{margin-top:22px;font-size:15px;padding:9px 26px;border-color:rgba(120,200,255,.45);box-shadow:none;
+    background:rgba(255,255,255,.05);max-width:80vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #start .tip{margin-top:28px;color:rgba(255,255,255,.45);font-size:13px}
+  #start .err{margin-top:20px;color:#f88;font-size:13px;display:none}
+  @keyframes hue{to{background-position:300% 0}}
+
+  /* 手机横屏 / 矮屏 */
+  @media (max-height:520px) and (min-aspect-ratio:4/5){
+    #tl,#tr{top:calc(12px + var(--st))}
+    #tl .lab{font-size:10px;letter-spacing:3px} #tl .ttl{font-size:12px;margin-top:3px}
+    #clock{font-size:12px} #chip{font-size:12px;margin-top:4px}
+    #readout{top:calc(64px + var(--st))} #readout .k{font-size:9px}
+    #temp{font-size:28px;margin:0 0 6px} #phase{font-size:13px;padding:3px 10px} #lowp{font-size:10px;margin-top:8px}
+    #panel{top:calc(52px + var(--st));width:min(32vw,320px)}
+    #pno{font-size:10px;padding-bottom:5px} #pzh{font-size:32px;margin-top:6px} #pen{font-size:11px;letter-spacing:3px}
+    #pbl{margin-top:8px} #pbl li{font-size:12px;margin:5px 0}
+    .bars{margin-top:8px} .bar{margin:4px 0;font-size:11px} .bar .tr{height:4px}
+    #sub{bottom:calc(14px + var(--sb));font-size:14px;padding:7px 18px}
+    #ui{padding:6px 8px;gap:4px} #ui button,#ui a{padding:5px 8px;font-size:12px}
+    #wzh{font-size:64px} #wno,#wen{font-size:11px}
+    #outro .o4{margin-top:30px}
+  }
+  /* 手机竖屏 */
+  @media (max-aspect-ratio:4/5){
+    #tl{left:16px;top:calc(14px + var(--st))} #tr{right:16px;top:calc(14px + var(--st))}
+    #tl .lab{font-size:10px;letter-spacing:3px} #tl .ttl{font-size:12px;margin-top:4px}
+    #clock{font-size:12px} #chip{font-size:12px;margin-top:5px}
+    #readout{left:16px;top:calc(70px + var(--st))} #readout .k{font-size:9px;letter-spacing:2px}
+    #temp{font-size:30px;margin:0 0 6px} #phase{font-size:13px;padding:3px 10px;margin-top:3px} #lowp{font-size:10px;margin-top:8px}
+    #panel{right:16px;top:calc(70px + var(--st));width:48vw;text-align:right}
+    #pno{font-size:10px;letter-spacing:2px;padding-bottom:5px} #pzh{font-size:34px;margin-top:6px} #pen{font-size:11px;letter-spacing:3px}
+    #panel.glitch{animation:none} #panel.glitch #pzh{animation:glitch .45s steps(6)}
+    #pbl{position:fixed;left:16px;right:16px;bottom:calc(122px + var(--sb));margin:0;text-align:left}
+    #pbl li{font-size:13px;margin:6px 0}
+    .bars{position:fixed;left:16px;right:16px;bottom:calc(14px + var(--sb));margin:0;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .bar{display:grid;grid-template-columns:1fr auto;gap:5px 4px;margin:0;font-size:10px}
+    .bar span:first-child{width:auto;white-space:nowrap} .bar .tr{grid-column:1/-1;grid-row:2;height:4px} .bar b{width:auto;font-size:10px}
+    #sub{bottom:calc(58px + var(--sb));white-space:normal;width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;
+      text-align:center;font-size:14px;line-height:1.5;padding:7px 16px;border-radius:16px}
+    #intro p{font-size:11px;letter-spacing:.3em}
+    #outro{padding:0 20px}
+    #outro .o1{font-size:36px} #outro .o2{font-size:20px;margin-top:18px} #outro .o3{font-size:14px;margin-top:18px;line-height:1.6}
+    #outro .o4{font-size:14px;margin-top:36px;letter-spacing:6px}
+    #ui{left:8px;right:8px;transform:none;max-width:none;bottom:calc(10px + var(--sb));padding:8px;gap:6px;justify-content:space-between}
+    #ui.hide{transform:translateY(14px)}
+    #ui .sep{display:none}
+    #ui button,#ui a{padding:8px 10px}
+    #time{display:none}
+    #chaps{order:9;flex:1 0 100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+      -webkit-mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 12px),transparent);
+      mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 12px),transparent);padding:0 6px}
+    #chaps::-webkit-scrollbar{display:none}
+    #chaps button{flex:none}
+    #start p{font-size:11px;letter-spacing:.15em;padding:0 20px;text-align:center}
+    #start .tip{padding:0 28px;text-align:center;line-height:1.7}
+    #wno,#wen{font-size:11px;letter-spacing:4px}
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="vig"></div>
+<div id="hud">
+  <div id="diag">
+    <div id="dt"></div><div id="de" class="mono">SIX PHASE TRANSITIONS</div>
+    <div id="dk"><span class="w">▲ 橙色外圈 = 吸热：熔化 · 汽化 · 升华</span><span class="c">▼ 蓝色内圈 = 放热：凝固 · 液化 · 凝华</span></div>
+    <div id="dbody"><svg id="dsvg" xmlns="http://www.w3.org/2000/svg"></svg><div id="dinfo"></div></div>
+    <div id="dtools"><button data-s="all">全部</button><button data-s="warm">▲ 吸热</button><button data-s="cool">▼ 放热</button><button data-s="exit">✕ 退出讲解</button></div>
+  </div>
+  <div id="bar"></div>
+  <div id="tl"><div class="lab">◆ PHYSICS LAB · 3D</div><div class="ttl">物态变化 · 固液气的微观世界</div></div>
+  <div id="tr"><div id="clock">00:00 / 02:18</div><div id="chip"></div></div>
+  <div id="readout">
+    <div class="k">TEMPERATURE</div><div id="temp">-20.0°C</div>
+    <div class="k">STATE</div><div id="phase">固态</div>
+    <div id="lowp">▼ LOW PRESSURE · 低气压</div>
+  </div>
+  <div id="panel">
+    <div id="pno"></div><div id="pzh"></div><div id="pen"></div><ul id="pbl"></ul>
+    <div class="bars">
+      <div class="bar"><span>分子平均速率</span><span class="tr"><i id="bv"></i></span><b id="nv">0%</b></div>
+      <div class="bar"><span>分子间作用力</span><span class="tr"><i id="bf"></i></span><b id="nf">0%</b></div>
+      <div class="bar"><span>排列有序度</span><span class="tr"><i id="bo"></i></span><b id="no">0%</b></div>
+    </div>
+  </div>
+  <div id="sub"></div>
+  <div id="intro"><h1>物态变化</h1><p>STATES OF MATTER · 3D</p></div>
+  <div id="outro">
+    <div class="o1">物态变化的本质</div>
+    <div class="o2"><span class="a">分子热运动</span>&nbsp; VS &nbsp;<span class="b">分子间作用力</span></div>
+    <div class="o3">温度越高，热运动越剧烈；作用力越强，分子越“团结”</div>
+    <div class="o4">— 感谢观看 —</div>
+  </div>
+</div>
+<div id="fade"></div>
+<div id="warp"><div class="wc"><div id="wno"></div><div id="wzh"></div><div id="wen"></div><div id="wpg"><i></i></div></div></div>
+
+<div id="start">
+  <h1>物态变化 3D</h1>
+  <p>STATES OF MATTER · 固液气的微观世界</p>
+  <button id="go">▶ 开始播放</button>
+  <button id="pickBgm" class="pick">🎵 选择背景音乐（可选）</button>
+  <div class="tip" id="tip">拖动旋转视角 · 滚轮缩放 · 点击画面显示/隐藏控制栏 · 空格暂停 · ←/→ 切换章节 · D 一图流讲解 · S 音效开关 · 时长约 2 分 18 秒</div>
+  <div class="err" id="err">Three.js 加载失败：3D 版需要联网从 CDN 加载 three.js。</div>
+</div>
+
+<div id="ui" class="hide">
+  <button id="bPlay">⏸</button>
+  <button id="bRestart">⟲</button>
+  <button id="bDiag" title="一图流讲解模式（D）">◈ 一图流</button>
+  <span class="sep"></span>
+  <span id="chaps"></span>
+  <span class="sep"></span>
+  <span id="time">00:00 / 02:18</span>
+  <button id="bSfx" class="on" title="切换音效开关（S）">✦ 音效</button>
+  <button id="bBgm" title="选择背景音乐">🎵 音乐</button>
+  <button id="bMute">🔊</button>
+  <button id="bFull">⛶</button>
+  <a id="to2d" href="./index.html">2D 版</a>
+</div>
+<input id="bgmFile" type="file" accept="audio/*" hidden>
+
+<script>
+  setTimeout(() => { if (!window.__three3d) document.getElementById('err').style.display = 'block'; }, 6000);
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+window.__three3d = true;
+
+/* ============================== 基础 ============================== */
+const AUTHOR = '傅新瑞';
+const $ = s => document.querySelector(s);
+const clamp = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x;
+const lerp = (a, b, u) => a + (b - a) * u;
+const sm = (a, b, x) => { const u = clamp((x - a) / (b - a)); return u * u * (3 - 2 * u); };
+const fmt = s => { s = Math.max(0, Math.floor(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+function track(keys) {
+  return t => {
+    if (t <= keys[0][0]) return keys[0][1];
+    for (let i = 1; i < keys.length; i++) if (t <= keys[i][0]) {
+      const [t0, v0] = keys[i - 1], [t1, v1] = keys[i], u = (t - t0) / (t1 - t0);
+      return v0 + (v1 - v0) * u * u * (3 - 2 * u);
+    }
+    return keys[keys.length - 1][1];
+  };
+}
+function mulberry(a) {
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function hsl(h, s, l, out, o) {
+  h = ((h % 360) + 360) % 360 / 360;
+  const q = l < .5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+  const f = t => { t = t < 0 ? t + 1 : t > 1 ? t - 1 : t;
+    return t < 1 / 6 ? p + (q - p) * 6 * t : t < .5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+  out[o] = f(h + 1 / 3); out[o + 1] = f(h); out[o + 2] = f(h - 1 / 3);
+}
+
+/* ============================== 时间线 ============================== */
+/* 两套时间：R = 实际播放时间（进度条 / 章节 / 字幕 / 音效），t = 剧情时间（物理与 3D 动画）。
+   开头 IP 处插入 D1 秒「一图流」预览，结尾 Q 处插入 D2 秒总结，插入期间剧情时间冻结。 */
+const PH0 = 7.5, PH1 = 104, HZ = 120;
+const IP = 5, D1 = 10, Q = 107, D2 = 14, TOTAL_S = 114, TOTAL = TOTAL_S + D1 + D2;
+const story = R => R < IP ? R : R < IP + D1 ? IP : R < Q + D1 ? R - D1 : R < Q + D1 + D2 ? Q : R - D1 - D2;
+const toR = t => t < IP ? t : t < Q ? t + D1 : t + D1 + D2;
+
+/* 配色：物态 = 冰白青 / 碧绿 / 紫；吸热 = 橙（外圈），放热 = 蓝（内圈） */
+const HUE = { S: 190, L: 165, G: 292, HOT: 26, COLD: 212 };
+const SCENES = [
+  { t: 0, name: '序章', hue: 260 },
+  { t: 8, name: '固态', no: '01', zh: '固态', en: 'SOLID', hue: HUE.S, bl: ['分子规则排列 · 构成三维晶格', '只能在平衡位置附近振动', '有固定的形状和体积'] },
+  { t: 18, name: '熔化', no: '02', zh: '熔化', en: 'MELTING', hue: 30, bl: ['固态 → 液态 · 吸收热量', '到达熔点后温度保持不变', '吸收的能量用于破坏晶格'] },
+  { t: 30, name: '液态', no: '03', zh: '液态', en: 'LIQUID', hue: HUE.L, bl: ['分子排列无序 · 可相互滑动', '分子间距小 · 有固定体积', '没有固定形状 · 具有流动性'] },
+  { t: 42, name: '汽化', no: '04', zh: '汽化', en: 'VAPORIZATION', hue: 16, bl: ['液态 → 气态 · 吸收热量', '沸腾时温度保持在沸点', '分子挣脱引力 · 逃离液面'] },
+  { t: 54, name: '气态', no: '05', zh: '气态', en: 'GAS', hue: HUE.G, bl: ['分子间距很大 · 作用力极弱', '高速无规则运动 · 充满容器', '撞击器壁 → 产生气压'] },
+  { t: 64, name: '液化', no: '06', zh: '液化', en: 'CONDENSATION', hue: 205, bl: ['气态 → 液态 · 放出热量', '分子减速 · 引力重新占上风', '例：露珠、冬天呼出的“白气”'] },
+  { t: 72, name: '凝固', no: '07', zh: '凝固', en: 'FREEZING', hue: 214, bl: ['液态 → 固态 · 放出热量', '凝固时温度保持在凝固点', '分子重新排列成规则晶格'] },
+  { t: 82, name: '升华', no: '08', zh: '升华', en: 'SUBLIMATION', hue: 40, bl: ['固态 → 气态 · 吸收热量', '跳过液态 · 分子直接逃离晶格', '例：干冰、樟脑丸、冻衣服晾干'] },
+  { t: 93, name: '凝华', no: '09', zh: '凝华', en: 'DEPOSITION', hue: 222, bl: ['气态 → 固态 · 放出热量', '跳过液态 · 分子直接排进晶格', '例：霜、雾凇、窗上的冰花'] },
+  { t: 104, name: '总结', hue: 280 },
+  { t: Q, name: '结语', hue: 320 },
+].map(s => ({ ...s, t: toR(s.t) }));
+const sceneIdx = R => { let i = 0; for (let k = 0; k < SCENES.length; k++) if (R >= SCENES[k].t) i = k; return i; };
+const DIAGS = [
+  { r0: IP, len: D1, title: '一张图记住物态变化', nodes: [.3, .55, .8], edges: [1.2, 2, 2.8], key: 3.4, warm: [4, 6.6], cool: [6.8, 9.4] },
+  { r0: Q + D1, len: D2, title: '总结 · 六种物态变化', nodes: [.2, .4, .6], edges: [.9, 1.5, 2.1], key: 2.6, warm: [4.6, 8.4], cool: [8.8, 12.6] },
+];
+const SUBS = [
+  [0.6, 2.6, '一切物质，都由永不停息的分子组成。'],
+  [2.6, 4.9, '而温度，决定了它们以怎样的姿态存在。'],
+  [IP + .3, IP + 3.8, '先用一张图记住：固、液、气三态之间，共有六种转变。'],
+  [IP + 3.8, IP + 6.7, '橙色外圈：熔化、汽化、升华——都要吸收热量。'],
+  [IP + 6.7, IP + 9.8, '蓝色内圈：凝固、液化、凝华——都会放出热量。'],
+  [Q + D1 + .3, Q + D1 + 4.4, '回顾这张图：固、液、气三态之间，一共六种物态变化。'],
+  [Q + D1 + 4.4, Q + D1 + 8.6, '温度升高的方向（橙色外圈）：熔化、汽化、升华，吸热。'],
+  [Q + D1 + 8.6, Q + D1 + 13.8, '温度降低的方向（蓝色内圈）：凝固、液化、凝华，放热。'],
+].concat([
+  [8.2, 12.8, '固态：分子整齐排列成三维晶格，像被弹簧连在一起。'],
+  [12.8, 17.8, '它们只能在原位附近振动，所以固体有固定的形状和体积。'],
+  [18.2, 22.5, '开始加热。分子的振动越来越剧烈……'],
+  [22.5, 29.8, '到达熔点 0°C 后温度不再上升——热量全部用来挣脱晶格的束缚。'],
+  [30.2, 34.5, '液态：分子依然紧挨着，却可以相互滑动。'],
+  [34.5, 41.8, '晃一晃容器：液体没有固定形状，会随容器流动，但体积不变。'],
+  [42.2, 47, '继续加热到 100°C，液体开始沸腾。'],
+  [47, 53.8, '温度再次停在沸点——能量被用来彻底挣脱分子间的引力。'],
+  [54.2, 58.5, '气态：分子间距极大，几乎不再相互吸引。'],
+  [58.5, 63.8, '它们高速乱撞、充满整个容器——撞击器壁的力，就是气压。'],
+  [64.2, 71.8, '现在反向冷却：气体放出热量，液化成液体。'],
+  [72.2, 81.8, '继续放热，分子被重新“锁”进晶格——这就是凝固。'],
+  [82.2, 87.5, '升华：在低气压下，冰吸收热量，不经过液态，直接变成气体。'],
+  [87.5, 92.8, '冬天冻硬的衣服也能晾干、樟脑丸越放越小，都是升华。'],
+  [93.2, 98, '凝华：气体分子撞上极冷的表面，直接排进晶格。'],
+  [98, 103.8, '这个过程放出热量——霜、雾凇和窗上的冰花，就是这样“长”出来的。'],
+].map(([a, b, s]) => [toR(a), toR(b), s]));
+const PHASES = [[0, ''], [PH0, '固态'], [20, '固液共存'], [29, '液态'], [46, '液气共存'], [53, '气态'], [64.5, '气液共存'], [68, '液态'],
+  [73, '液固共存'], [81, '固态'], [84, '固气共存'], [91, '气态'], [94, '气固共存'], [102, '固态']];
+const phaseAt = t => { let p = ''; for (const [a, n] of PHASES) if (t >= a) p = n; return p; };
+
+const trT = track([[PH0, .2], [18, .2], [21, .45], [29, .6], [42, .8], [45, 1.3], [53, 7], [64, 8], [67, 1], [72, .7], [80, .3], [83, .3], [85, 4.5], [93, 4.5], [101, .3]]);
+const trTb = track([[PH0, .03], [18, .03], [28, .1], [30, .05]]);
+const trCoh = track([[PH0, 1], [45, 1], [52, 0], [64, 0], [68, 1], [82.5, 1], [83.5, 0]]);
+const trG = track([[PH0, 9], [45, 9], [52, .8], [64, .8], [68, 9], [82.5, 9], [83.5, .6], [100, .6], [102, 9]]);
+const trM = track([[20, 0], [22, .12], [27.5, .78], [29.5, 1.15]]);
+const trS = track([[83, -.2], [91, 1.15]]);
+const trHeat = track([[PH0, 0], [18, 0], [19, 1], [28.5, 1], [29.5, 0], [42, 0], [43, 1], [53, 1], [54, 0], [64, 0], [65, -1], [80.5, -1], [81.5, 0],
+  [83, 0], [84, .6], [90.5, .6], [91.5, 0], [93.5, 0], [94.5, -1], [101.5, -1], [102.5, 0]]);
+const trTemp = track([[PH0, -20], [18, -20], [20, 0], [29, 0], [30.5, 0], [42, 100], [53, 100], [57, 120], [64, 120], [65.5, 100], [69, 100], [72, 0],
+  [80.5, 0], [82, -20], [84, -10], [91, -10], [92.5, -10], [95, -30], [103, -25]]);
+
+const SH0 = 33, SH1 = 39, SHW = 2.4;
+const shakeEnv = t => sm(SH0, SH0 + 1, t) * (1 - sm(SH1 - 1, SH1, t));
+const rigPhi = t => .13 * Math.sin(SHW * (t - SH0)) * shakeEnv(t);
+const rigDx = t => .6 * Math.sin(SHW * (t - SH0)) * shakeEnv(t);
+const gxAt = (t, g) => -g * Math.sin(rigPhi(t)) + .6 * SHW * SHW * Math.sin(SHW * (t - SH0)) * shakeEnv(t);
+
+/* ============================== 分子动力学 ============================== */
+const N = 512, R = .26, S = .62, RC = S * 1.6, RC2 = RC * RC, KREP = 600, ATT = 7, KLAT = 260, FCAP = 40;
+const BX = 4.4, BY = 7.5, BZ = 3;
+const lr = mulberry(20260214);
+
+const L1 = new Float32Array(N * 3), TH1 = new Float32Array(N), P1 = [];
+{
+  const id = (x, y, z) => (y * 8 + x) * 8 + z;
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) for (let z = 0; z < 8; z++) {
+    const i = id(x, y, z);
+    L1[i * 3] = (x - 3.5) * S; L1[i * 3 + 1] = R + .02 + y * S; L1[i * 3 + 2] = (z - 3.5) * S;
+    const d = Math.min(x, 7 - x, z, 7 - z, 7 - y, y);
+    TH1[i] = .62 * d / 3 + .26 * y / 7 + .12 * lr();
+    if (x < 7) P1.push(i, id(x + 1, y, z)); if (y < 7) P1.push(i, id(x, y + 1, z)); if (z < 7) P1.push(i, id(x, y, z + 1));
+  }
+}
+const NX2 = 14, NZ2 = 9, NL2 = 5, M2 = NX2 * NZ2 * NL2;
+const L2 = new Float32Array(M2 * 3), TH2 = new Float32Array(M2), P2 = [], ORDER2 = [];
+{
+  const id = (x, y, z) => (y * NX2 + x) * NZ2 + z;
+  for (let y = 0; y < NL2; y++) {
+    const layer = [];
+    for (let x = 0; x < NX2; x++) for (let z = 0; z < NZ2; z++) {
+      const i = id(x, y, z);
+      L2[i * 3] = (x - (NX2 - 1) / 2) * S; L2[i * 3 + 1] = R + .02 + y * S; L2[i * 3 + 2] = (z - (NZ2 - 1) / 2) * S;
+      TH2[i] = (1 - y / 3.2) * .8 + .2 * lr();
+      if (x < NX2 - 1) P2.push(i, id(x + 1, y, z)); if (y < NL2 - 1) P2.push(i, id(x, y + 1, z)); if (z < NZ2 - 1) P2.push(i, id(x, y, z + 1));
+      layer.push(i);
+    }
+    for (let k = layer.length - 1; k > 0; k--) { const j = lr() * (k + 1) | 0; [layer[k], layer[j]] = [layer[j], layer[k]]; }
+    ORDER2.push(...layer);
+  }
+}
+
+const st = {
+  x: new Float32Array(N), y: new Float32Array(N), z: new Float32Array(N),
+  vx: new Float32Array(N), vy: new Float32Array(N), vz: new Float32Array(N),
+  site: new Int32Array(N), capT: new Float32Array(N), owner: new Int32Array(M2),
+  mode: 1, cap: 0, rs: 1, k: 0,
+};
+const B = new Float32Array(N), AX = new Float32Array(N), AY = new Float32Array(N), AZ = new Float32Array(N);
+function rnd() { let a = st.rs; a = a + 0x6D2B79F5 | 0; st.rs = a; let t = Math.imul(a ^ a >>> 15, 1 | a);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+const gauss = () => (rnd() + rnd() + rnd() - 1.5) * 2;
+
+function reset() {
+  for (let i = 0; i < N; i++) { st.x[i] = L1[i * 3]; st.y[i] = L1[i * 3 + 1]; st.z[i] = L1[i * 3 + 2]; st.site[i] = i; }
+  st.vx.fill(0); st.vy.fill(0); st.vz.fill(0); st.capT.fill(0); st.owner.fill(-1);
+  st.mode = 1; st.cap = 0; st.rs = 77; st.k = 0;
+  computeB(PH0);
+}
+const snaps = new Map();
+const SNAP_EVERY = 4 * HZ;
+function snapshot() {
+  const o = { mode: st.mode, cap: st.cap, rs: st.rs, k: st.k };
+  for (const key of ['x', 'y', 'z', 'vx', 'vy', 'vz', 'site', 'capT', 'owner']) o[key] = st[key].slice();
+  snaps.set(st.k, o);
+}
+function restore(o) {
+  for (const key of ['x', 'y', 'z', 'vx', 'vy', 'vz', 'site', 'capT', 'owner']) st[key].set(o[key]);
+  st.mode = o.mode; st.cap = o.cap; st.rs = o.rs; st.k = o.k;
+}
+
+function sitePos(i) {
+  const s = st.site[i]; if (s < 0) return null;
+  return st.mode === 1 ? [L1[s * 3], L1[s * 3 + 1], L1[s * 3 + 2]] : [L2[s * 3], L2[s * 3 + 1], L2[s * 3 + 2]];
+}
+function computeB(t) {
+  if (st.mode === 1) { const m = trM(t); for (let i = 0; i < N; i++) B[i] = clamp((TH1[i] - m) * 12 + .5); return; }
+  const s = st.mode === 2 ? trS(t) : -1;
+  for (let i = 0; i < N; i++) {
+    const si = st.site[i];
+    B[i] = si < 0 ? 0 : clamp((t - st.capT[i]) / .6) * clamp((TH2[si] - s) * 12 + .5);
+  }
+}
+function capture(t) {
+  const site = ORDER2[st.cap], sx = L2[site * 3], sy = L2[site * 3 + 1], sz = L2[site * 3 + 2];
+  let best = -1, bd = 1e9;
+  for (let i = 0; i < N; i++) if (st.site[i] < 0) {
+    const dx = st.x[i] - sx, dy = st.y[i] - sy, dz = st.z[i] - sz, d = dx * dx + dy * dy + dz * dz;
+    if (d < bd) { bd = d; best = i; }
+  }
+  if (best >= 0) { st.site[best] = site; st.owner[site] = best; st.capT[best] = t; }
+  st.cap++;
+}
+
+const GXc = Math.ceil(2 * BX / RC), GYc = Math.ceil(BY / RC), GZc = Math.ceil(2 * BZ / RC);
+const head = new Int32Array(GXc * GYc * GZc), next = new Int32Array(N), cellX = new Int32Array(N), cellY = new Int32Array(N), cellZ = new Int32Array(N);
+const HALF = [];
+for (let dz = -1; dz <= 1; dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++)
+  if (dz > 0 || (dz === 0 && (dy > 0 || (dy === 0 && dx > 0)))) HALF.push([dx, dy, dz]);
+
+function step(t) {
+  if (st.mode === 1 && t >= 72.5) { st.mode = 2; st.site.fill(-1); st.owner.fill(-1); st.cap = 0; }
+  if (st.mode === 2 && t >= 93.5) { st.mode = 3; st.site.fill(-1); st.owner.fill(-1); st.cap = 0; }
+  if (st.mode >= 2) {
+    const [t0, dur, tf] = st.mode === 2 ? [73, 7.5, 81] : [94, 7, 101.5];
+    const target = t >= tf ? N : Math.floor(N * clamp((t - t0) / dur));
+    while (st.cap < target) capture(t);
+  }
+  computeB(t);
+  const T = trT(t), Tb = trTb(t), coh = trCoh(t), g = trG(t), gx = gxAt(t, g), dt = 1 / HZ;
+  const { x, y, z, vx, vy, vz } = st;
+  head.fill(-1);
+  for (let i = 0; i < N; i++) {
+    const cx = Math.min(GXc - 1, Math.max(0, ((x[i] + BX) / RC) | 0)), cy = Math.min(GYc - 1, Math.max(0, (y[i] / RC) | 0)), cz = Math.min(GZc - 1, Math.max(0, ((z[i] + BZ) / RC) | 0));
+    cellX[i] = cx; cellY[i] = cy; cellZ[i] = cz;
+    const c = cx + GXc * (cy + GYc * cz); next[i] = head[c]; head[c] = i;
+  }
+  AX.fill(0); AY.fill(0); AZ.fill(0);
+  const attK = coh * ATT, PIW = Math.PI / (RC - S);
+  const pair = (i, j) => {
+    const dx = x[j] - x[i], dy = y[j] - y[i], dz = z[j] - z[i], r2 = dx * dx + dy * dy + dz * dz;
+    if (r2 >= RC2 || r2 < 1e-8) return;
+    const r = Math.sqrt(r2);
+    let f;
+    if (r < S) f = -KREP * (S - r);
+    else { if (attK <= 0) return; f = attK * Math.sin((r - S) * PIW); }
+    f /= r;
+    const fx = f * dx, fy = f * dy, fz = f * dz;
+    AX[i] += fx; AY[i] += fy; AZ[i] += fz; AX[j] -= fx; AY[j] -= fy; AZ[j] -= fz;
+  };
+  for (let i = 0; i < N; i++) {
+    for (let j = next[i]; j >= 0; j = next[j]) pair(i, j);
+    const cx = cellX[i], cy = cellY[i], cz = cellZ[i];
+    for (const o of HALF) {
+      const nx = cx + o[0], ny = cy + o[1], nz = cz + o[2];
+      if (nx < 0 || ny < 0 || nz < 0 || nx >= GXc || ny >= GYc || nz >= GZc) continue;
+      for (let j = head[nx + GXc * (ny + GYc * nz)]; j >= 0; j = next[j]) pair(i, j);
+    }
+  }
+  const gamFree = lerp(.4, 1.2, coh), lo = -BX + R, hi = BX - R, zlo = -BZ + R, zhi = BZ - R, ytop = BY - R;
+  for (let i = 0; i < N; i++) {
+    const b = B[i];
+    if (b > 0) {
+      const p = sitePos(i);
+      if (p) {
+        let fx = -KLAT * b * (x[i] - p[0]), fy = -KLAT * b * (y[i] - p[1]), fz = -KLAT * b * (z[i] - p[2]);
+        const fm = Math.sqrt(fx * fx + fy * fy + fz * fz);
+        if (fm > FCAP) { const s = FCAP / fm; fx *= s; fy *= s; fz *= s; }
+        AX[i] += fx; AY[i] += fy; AZ[i] += fz;
+      }
+    }
+    const Ti = lerp(T, Tb, b), gam = lerp(gamFree, 4.5, b), amp = Math.sqrt(2 * gam * Ti * dt);
+    vx[i] += (AX[i] + gx) * dt - gam * vx[i] * dt + amp * gauss();
+    vy[i] += (AY[i] - g) * dt - gam * vy[i] * dt + amp * gauss();
+    vz[i] += AZ[i] * dt - gam * vz[i] * dt + amp * gauss();
+    const v2 = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
+    if (v2 > 400) { const s = 20 / Math.sqrt(v2); vx[i] *= s; vy[i] *= s; vz[i] *= s; }
+    x[i] += vx[i] * dt; y[i] += vy[i] * dt; z[i] += vz[i] * dt;
+    if (x[i] < lo) { x[i] = lo; if (vx[i] < 0) vx[i] = -vx[i]; } else if (x[i] > hi) { x[i] = hi; if (vx[i] > 0) vx[i] = -vx[i]; }
+    if (y[i] < R) { y[i] = R; if (vy[i] < 0) vy[i] = -vy[i] * .6; } else if (y[i] > ytop) { y[i] = ytop; if (vy[i] > 0) vy[i] = -vy[i]; }
+    if (z[i] < zlo) { z[i] = zlo; if (vz[i] < 0) vz[i] = -vz[i]; } else if (z[i] > zhi) { z[i] = zhi; if (vz[i] > 0) vz[i] = -vz[i]; }
+  }
+}
+const KMAX = Math.round((PH1 - PH0) * HZ);
+function stepOnce() {
+  step(PH0 + st.k / HZ); st.k++;
+  if (st.k % SNAP_EVERY === 0 && !snaps.has(st.k)) snapshot();
+}
+
+/* ============================== 场景 ============================== */
+const cv = $('#gl');
+const COARSE = matchMedia('(pointer: coarse)').matches;
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(COARSE ? 1.5 : 2, devicePixelRatio));
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x04030c);
+scene.fog = new THREE.FogExp2(0x05030f, .016);
+const camera = new THREE.PerspectiveCamera(38, 1, .1, 400);
+camera.position.set(13, 8.5, 16);
+const controls = new OrbitControls(camera, cv);
+controls.target.set(0, 3.2, 0); controls.enableDamping = true; controls.dampingFactor = .06;
+controls.autoRotate = true; controls.autoRotateSpeed = .55; controls.minDistance = 8; controls.maxDistance = 45;
+controls.maxPolarAngle = 1.5; controls.enablePan = false;
+let userCam = false, camFit = 1;
+cv.addEventListener('wheel', () => { userCam = true; }, { passive: true });
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const BLOOM = .55;
+const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), BLOOM, .45, .42);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+scene.add(new THREE.HemisphereLight(0x8fb4ff, 0x220a33, .7));
+const key = new THREE.DirectionalLight(0xffffff, 1.3); key.position.set(6, 14, 8); scene.add(key);
+const rim = new THREE.DirectionalLight(0xff3ad0, 1.1); rim.position.set(-10, 5, -10); scene.add(rim);
+
+const grid = new THREE.GridHelper(90, 90, 0xff2bd6, 0x3b1a6b);
+grid.position.y = -.22; grid.material.transparent = true; grid.material.opacity = .32; grid.material.depthWrite = false; scene.add(grid);
+function radialTex() {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 256); return new THREE.CanvasTexture(c);
+}
+const disc = new THREE.Mesh(new THREE.PlaneGeometry(26, 26), new THREE.MeshBasicMaterial({ map: radialTex(), transparent: true, opacity: .16,
+  blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+disc.rotation.x = -Math.PI / 2; disc.position.y = -.2; scene.add(disc);
+{
+  const n = 1400, p = new Float32Array(n * 3), r = mulberry(9);
+  for (let i = 0; i < n; i++) {
+    const u = r() * 2 - 1, a = r() * Math.PI * 2, rr = 60 + r() * 80, s = Math.sqrt(1 - u * u);
+    p[i * 3] = Math.cos(a) * s * rr; p[i * 3 + 1] = Math.abs(u) * rr * .8 + 4; p[i * 3 + 2] = Math.sin(a) * s * rr;
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xaabbff, size: .35, transparent: true, opacity: .8, depthWrite: false, fog: false })));
+}
+
+const rig = new THREE.Group(); scene.add(rig);
+const glassMat = new THREE.MeshBasicMaterial({ color: 0x7799ff, transparent: true, opacity: .035, side: THREE.DoubleSide, depthWrite: false });
+const glass = new THREE.Mesh(new THREE.BoxGeometry(2 * BX, BY, 2 * BZ), glassMat); glass.position.y = BY / 2; rig.add(glass);
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x66ccff, transparent: true, toneMapped: false });
+const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(2 * BX, BY, 2 * BZ)), edgeMat);
+edges.position.y = BY / 2; rig.add(edges);
+const plateMat = new THREE.MeshStandardMaterial({ color: 0x0b0b16, roughness: .4, metalness: .6, emissive: 0x000000, transparent: true });
+const plate = new THREE.Mesh(new THREE.BoxGeometry(2 * BX + .5, .16, 2 * BZ + .5), plateMat); plate.position.y = -.09; rig.add(plate);
+const heatLight = new THREE.PointLight(0xff6a20, 0, 14, 1.6); heatLight.position.set(0, .7, 0); rig.add(heatLight);
+
+const molMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .32, metalness: .15 });
+const glowU = { value: .32 };
+molMat.onBeforeCompile = sh => {
+  sh.uniforms.uGlow = glowU;
+  sh.fragmentShader = 'uniform float uGlow;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>',
+    '#include <emissivemap_fragment>\n#ifdef USE_COLOR\n  totalEmissiveRadiance += vColor.rgb * uGlow;\n#endif');
+};
+const mols = new THREE.InstancedMesh(new THREE.SphereGeometry(R, 18, 14), molMat, N);
+mols.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+mols.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3).setUsage(THREE.DynamicDrawUsage);
+mols.frustumCulled = false; rig.add(mols);
+const COL = mols.instanceColor.array, MAT = mols.instanceMatrix.array;
+
+function lineLayer(maxSeg) {
+  const g = new THREE.BufferGeometry();
+  const pa = new THREE.BufferAttribute(new Float32Array(maxSeg * 6), 3).setUsage(THREE.DynamicDrawUsage);
+  const ca = new THREE.BufferAttribute(new Float32Array(maxSeg * 6), 3).setUsage(THREE.DynamicDrawUsage);
+  g.setAttribute('position', pa); g.setAttribute('color', ca); g.setDrawRange(0, 0);
+  const m = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true,
+    blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  m.frustumCulled = false; rig.add(m);
+  return { g, P: pa.array, C: ca.array, pa, ca, set(n) { g.setDrawRange(0, n * 2); pa.needsUpdate = ca.needsUpdate = true; } };
+}
+const bonds = lineLayer(Math.max(P1.length, P2.length) / 2);
+const streaks = lineLayer(N);
+
+const GX = 12, GZ = 8;
+const surfGeo = new THREE.PlaneGeometry(2 * BX - .04, 2 * BZ - .04, GX, GZ); surfGeo.rotateX(-Math.PI / 2);
+const surfFill = new THREE.Mesh(surfGeo, new THREE.MeshBasicMaterial({ color: 0x22c8ff, transparent: true, opacity: 0, side: THREE.DoubleSide,
+  blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+const surfWire = new THREE.Mesh(surfGeo, new THREE.MeshBasicMaterial({ color: 0x7ff6ff, wireframe: true, transparent: true, opacity: 0,
+  blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+rig.add(surfFill, surfWire);
+const colH = new Float32Array(GX * GZ), colS = new Float32Array(GX * GZ);
+const CELLA = (2 * BX / GX) * (2 * BZ / GZ), VP = S * S * S * .92;
+let snapSurf = true;
+
+const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, side: THREE.DoubleSide,
+  blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+const ring = new THREE.Mesh(new THREE.RingGeometry(.97, 1, 160), ringMat); ring.rotation.x = -Math.PI / 2; ring.position.y = -.15; scene.add(ring);
+let ringT = -9, flashK = 0;
+
+/* ============================== 每帧：位置 / 颜色 / 线 / 液面 ============================== */
+const GA = new Float32Array(N), GR = new Float32Array(N), GYo = new Float32Array(N), GS = new Float32Array(N);
+{
+  const r = mulberry(5);
+  for (let i = 0; i < N; i++) {
+    const rr = 1.2 + Math.pow(r(), .7) * 7.5;
+    GR[i] = rr; GA[i] = (i % 3) * Math.PI * 2 / 3 + rr * .55 + (r() - .5) * .5; GYo[i] = (r() - .5) * .9 * (1.4 - rr / 9); GS[i] = r();
+  }
+}
+const tmp = [0, 0, 0];
+function gal(i, t, out) {
+  const ang = GA[i] + t * (.3 + 1.1 / GR[i]), e = .12 + .88 * sm(.25, 1.6, t);
+  out[0] = Math.cos(ang) * GR[i] * e; out[2] = Math.sin(ang) * GR[i] * .85 * e; out[1] = 3.6 + GYo[i] + .3 * Math.sin(t * 1.3 + GA[i] * 3);
+}
+const RP = new Float32Array(N * 3), SP = new Float32Array(N);
+const inPhys = t => t >= PH0 && t < PH1;
+function positions(t, R) {
+  if (inPhys(t)) { for (let i = 0; i < N; i++) { RP[i * 3] = st.x[i]; RP[i * 3 + 1] = st.y[i]; RP[i * 3 + 2] = st.z[i]; } return; }
+  const intro = t < PH0, u = intro ? sm(5.5, 7.5, t) : sm(PH1, PH1 + 2.8, t);
+  for (let i = 0; i < N; i++) {
+    gal(i, R, tmp);
+    const ui = clamp(u * 1.5 - GS[i] * .5), e = ui * ui * (3 - 2 * ui);
+    const ax = intro ? L1[i * 3] : st.x[i], ay = intro ? L1[i * 3 + 1] : st.y[i], az = intro ? L1[i * 3 + 2] : st.z[i];
+    const w = intro ? e : 1 - e;
+    RP[i * 3] = lerp(tmp[0], ax, w); RP[i * 3 + 1] = lerp(tmp[1], ay, w) + Math.sin(Math.PI * e) * 1.2; RP[i * 3 + 2] = lerp(tmp[2], az, w);
+  }
+}
+const MF = new Float32Array(N * 3);
+let mT0 = -1, NOW = 0;
+function applyMorph() {
+  if (mT0 < 0) return 1;
+  const u = isFinite(mT0) ? clamp((NOW - mT0) / 1.1) : 0;
+  if (u >= 1) { mT0 = -1; return 1; }
+  const out = J && J.ph === 'out', sp = 1 + .22 * (out ? warpA : 1);
+  for (let i = 0; i < N; i++) {
+    const ui = clamp(u * 1.5 - GS[i] * .5), e = ui * ui * (3 - 2 * ui), a = i * 3;
+    RP[a] = lerp(MF[a] * sp, RP[a], e);
+    RP[a + 1] = lerp(3.2 + (MF[a + 1] - 3.2) * sp, RP[a + 1], e) + Math.sin(Math.PI * e) * .8;
+    RP[a + 2] = lerp(MF[a + 2] * sp, RP[a + 2], e);
+  }
+  return out ? 1 - warpA : sm(.55, 1, u);
+}
+function colorsAndMatrices(t, R) {
+  const intro = t < PH0, outro = t >= PH1, sc0 = intro ? lerp(.7, 1, sm(5.5, 7.5, t)) : outro ? lerp(1, .8, sm(PH1, PH1 + 2, t)) : 1;
+  const wIce = intro ? sm(6, 7.5, t) : outro ? 1 - sm(PH1, PH1 + 2, t) : 0;
+  const gasSc = inPhys(t) ? lerp(.5, 1, trCoh(t)) : 1;
+  for (let i = 0, o = 0; i < N; i++, o += 16) {
+    let h, l, sc = sc0 * lerp(gasSc, 1, B[i]);
+    if (intro || outro) {
+      h = lerp(GA[i] * 57 + GR[i] * 24 + R * 40, outro ? 200 + 190 * clamp(SP[i] / 9) : 188, wIce); l = lerp(.5, .5, wIce);
+    } else {
+      const u = clamp(SP[i] / 9), b = B[i];
+      h = lerp(200 + 190 * u, 188, b); l = lerp(.42 + .12 * u, .5, b);
+    }
+    hsl(h, 1, l, COL, i * 3);
+    MAT[o] = sc; MAT[o + 1] = 0; MAT[o + 2] = 0; MAT[o + 3] = 0;
+    MAT[o + 4] = 0; MAT[o + 5] = sc; MAT[o + 6] = 0; MAT[o + 7] = 0;
+    MAT[o + 8] = 0; MAT[o + 9] = 0; MAT[o + 10] = sc; MAT[o + 11] = 0;
+    MAT[o + 12] = RP[i * 3]; MAT[o + 13] = RP[i * 3 + 1]; MAT[o + 14] = RP[i * 3 + 2]; MAT[o + 15] = 1;
+  }
+  mols.instanceMatrix.needsUpdate = true; mols.instanceColor.needsUpdate = true;
+}
+function fillBonds(t, lk) {
+  if (!inPhys(t) || lk <= .01) return bonds.set(0);
+  const pairs = st.mode === 1 ? P1 : P2, P = bonds.P, C = bonds.C, lim = (S * 1.45) ** 2;
+  let n = 0;
+  for (let k = 0; k < pairs.length; k += 2) {
+    let i = pairs[k], j = pairs[k + 1];
+    if (st.mode !== 1) { i = st.owner[i]; j = st.owner[j]; if (i < 0 || j < 0) continue; }
+    const w = Math.min(B[i], B[j]); if (w < .25) continue;
+    const a = i * 3, b = j * 3, dx = RP[b] - RP[a], dy = RP[b + 1] - RP[a + 1], dz = RP[b + 2] - RP[a + 2];
+    if (dx * dx + dy * dy + dz * dz > lim) continue;
+    const o = n * 6, c = w * .5 * lk;
+    P[o] = RP[a]; P[o + 1] = RP[a + 1]; P[o + 2] = RP[a + 2]; P[o + 3] = RP[b]; P[o + 4] = RP[b + 1]; P[o + 5] = RP[b + 2];
+    C[o] = C[o + 3] = .25 * c; C[o + 1] = C[o + 4] = .85 * c; C[o + 2] = C[o + 5] = c;
+    n++;
+  }
+  bonds.set(n);
+}
+function fillStreaks(t, lk) {
+  if (!inPhys(t) || lk <= .01) return streaks.set(0);
+  const P = streaks.P, C = streaks.C; let n = 0;
+  for (let i = 0; i < N; i++) {
+    if (B[i] > .3 || SP[i] < 2.5) continue;
+    const k = clamp((SP[i] - 2.5) / 5) * .9 * lk, a = i * 3, o = n * 6;
+    P[o] = RP[a]; P[o + 1] = RP[a + 1]; P[o + 2] = RP[a + 2];
+    P[o + 3] = RP[a] - st.vx[i] * .055; P[o + 4] = RP[a + 1] - st.vy[i] * .055; P[o + 5] = RP[a + 2] - st.vz[i] * .055;
+    C[o] = COL[a] * k; C[o + 1] = COL[a + 1] * k; C[o + 2] = COL[a + 2] * k; C[o + 3] = C[o + 4] = C[o + 5] = 0;
+    n++;
+  }
+  streaks.set(n);
+}
+const surfVis = t => sm(29, 31, t) * (1 - sm(46, 51, t)) + sm(66, 68.5, t) * (1 - sm(76, 80, t));
+function surface(t, dt, lk) {
+  const vis = surfVis(t) * lk;
+  surfFill.visible = surfWire.visible = vis > .005;
+  surfFill.material.opacity = .13 * vis; surfWire.material.opacity = .3 * vis;
+  if (!surfFill.visible) { snapSurf = true; return; }
+  colH.fill(0);
+  for (let i = 0; i < N; i++) {
+    if (RP[i * 3 + 1] > 5.2) continue;
+    const cx = clamp(((RP[i * 3] + BX) / (2 * BX) * GX) | 0, 0, GX - 1), cz = clamp(((RP[i * 3 + 2] + BZ) / (2 * BZ) * GZ) | 0, 0, GZ - 1);
+    colH[cz * GX + cx]++;
+  }
+  const k = snapSurf || dt <= 0 ? 1 : 1 - Math.exp(-dt * 5); snapSurf = false;
+  for (let cz = 0; cz < GZ; cz++) for (let cx = 0; cx < GX; cx++) {
+    let s = 0, w = 0;
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const x = cx + dx, z = cz + dz; if (x < 0 || z < 0 || x >= GX || z >= GZ) continue;
+      const ww = dx || dz ? 1 : 2; s += colH[z * GX + x] * ww; w += ww;
+    }
+    const c = cz * GX + cx; colS[c] += (s / w * VP / CELLA - colS[c]) * k;
+  }
+  const pos = surfGeo.attributes.position;
+  for (let iz = 0; iz <= GZ; iz++) for (let ix = 0; ix <= GX; ix++) {
+    let s = 0, w = 0;
+    for (const [x, z] of [[ix - 1, iz - 1], [ix, iz - 1], [ix - 1, iz], [ix, iz]]) if (x >= 0 && z >= 0 && x < GX && z < GZ) { s += colS[z * GX + x]; w++; }
+    pos.setY(iz * (GX + 1) + ix, s / w + .05 * Math.sin(t * 3 + ix * .9 + iz * .7));
+  }
+  pos.needsUpdate = true;
+}
+
+/* ============================== HUD ============================== */
+const panel = $('#panel'), chaps = $('#chaps');
+const cache = new Map();
+const setT = (el, v) => { if (cache.get(el) !== v) { cache.set(el, v); el.textContent = v; } };
+const setS = (el, k, v) => { const id = el.id + k; if (cache.get(id) !== v) { cache.set(id, v); el.style[k] = v; } };
+let lastSi = -1;
+function setPanel(si, fx) {
+  const s = SCENES[si], col = `hsl(${s.hue},100%,68%)`;
+  $('#chip').textContent = s.no ? `CH ${s.no} · ${s.zh}` : s.name; $('#chip').style.color = col;
+  [...chaps.children].forEach((b, i) => b.classList.toggle('on', i === si));
+  const ab = chaps.children[si];
+  if (ab && chaps.scrollWidth > chaps.clientWidth) chaps.scrollTo({ left: ab.offsetLeft - (chaps.clientWidth - ab.offsetWidth) / 2, behavior: 'smooth' });
+  if (!s.no) return;
+  panel.style.setProperty('--hc', col);
+  $('#pno').textContent = `CHAPTER ${s.no} / 09`; $('#pno').style.color = col;
+  $('#pzh').textContent = s.zh; $('#pen').textContent = s.en; $('#pen').style.color = col;
+  const ul = $('#pbl'); ul.classList.remove('show');
+  ul.innerHTML = s.bl.map((b, k) => `<li style="transition-delay:${.25 + k * .18}s">${b}</li>`).join('');
+  requestAnimationFrame(() => requestAnimationFrame(() => ul.classList.add('show')));
+  if (fx) { panel.classList.remove('glitch'); void panel.offsetWidth; panel.classList.add('glitch'); }
+}
+const PHC = { 固态: `hsl(${HUE.S},95%,80%)`, 液态: `hsl(${HUE.L},90%,60%)`, 气态: `hsl(${HUE.G},95%,74%)` };
+function hud(R, t, sv, order) {
+  setS($('#bar'), 'width', (R / TOTAL * 100).toFixed(2) + '%');
+  setT($('#clock'), `${fmt(R)} / ${fmt(TOTAL)}`);
+  const pk = 1 - PM.a, a = (sm(7.6, 8.6, t) * (1 - sm(PH1 - .5, PH1 + .5, t)) * pk).toFixed(3);
+  setS($('#readout'), 'opacity', a); setS(panel, 'opacity', a);
+  const temp = trTemp(t), tc = `hsl(${lerp(205, 8, clamp((temp + 30) / 150))},100%,66%)`;
+  setT($('#temp'), `${temp.toFixed(1)}°C`); setS($('#temp'), 'color', tc);
+  const ph = phaseAt(t), pc = PHC[ph] || 'hsl(45,100%,70%)';
+  setT($('#phase'), ph); setS($('#phase'), 'color', pc);
+  setS($('#lowp'), 'opacity', String(sm(82.3, 83, t) * (1 - sm(92.5, 93.2, t))));
+  const f = clamp(trCoh(t) * (1 - order) * .55 + order);
+  for (const [b, n, v, c] of [['#bv', '#nv', sv, 'linear-gradient(90deg,#0cf,#f80)'], ['#bf', '#nf', f, 'linear-gradient(90deg,#46f,#c4f)'], ['#bo', '#no', order, 'linear-gradient(90deg,#0fc,#0af)']]) {
+    setS($(b), 'width', (v * 100).toFixed(1) + '%'); setS($(b), 'background', c); setT($(n), Math.round(v * 100) + '%');
+  }
+  const s = SUBS.find(s => R >= s[0] && R < s[1]);
+  if (s) setT($('#sub'), s[2]);
+  setS($('#sub'), 'opacity', s ? String(sm(s[0], s[0] + .3, R) * (1 - sm(s[1] - .3, s[1], R)) * pk) : '0');
+  setS($('#intro'), 'opacity', String(sm(.9, 1.7, t) * (1 - sm(4.1, 4.9, t)) * pk));
+  setS($('#outro'), 'opacity', String(pk));
+  [Q + .5, Q + 1.7, Q + 2.9, Q + 4.1].forEach((th, k) => $('#outro').children[k].classList.toggle('on', R >= toR(th)));
+  setS($('#fade'), 'opacity', String(Math.max(1 - sm(0, .6, R), sm(TOTAL - 1.2, TOTAL, R), leaveT >= 0 ? clamp((NOW - leaveT) / .4) : 0)));
+  diagram(R);
+}
+
+/* ============================== 一图流：三态 + 六种转变 ============================== */
+const SVGNS = 'http://www.w3.org/2000/svg';
+const DNODE = { S: { zh: '固态', en: 'SOLID', h: HUE.S, l: 80 }, L: { zh: '液态', en: 'LIQUID', h: HUE.L, l: 58 }, G: { zh: '气态', en: 'GAS', h: HUE.G, l: 72 } };
+const DEDGE = [
+  ['S', 'L', '熔化', 1, '冰化成水', 0], ['L', 'S', '凝固', 0, '水结成冰', 0],
+  ['L', 'G', '汽化', 1, '水烧开、衣服晾干', 1], ['G', 'L', '液化', 0, '露珠、“白气”', 1],
+  ['S', 'G', '升华', 1, '干冰、樟脑丸', 2], ['G', 'S', '凝华', 0, '霜、雾凇', 2],
+];
+const diagEl = $('#diag'), dsvg = $('#dsvg');
+let DG = null, diagCur = null;
+function svgEl(tag, at, parent) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in at) e.setAttribute(k, at[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function buildDiag() {
+  const portrait = innerWidth / innerHeight < .8;
+  if (DG && DG.portrait === portrait) return;
+  const L = portrait
+    ? { W: 760, H: 1060, R: 84, P: { G: [380, 190], S: [140, 840], L: [620, 840] }, fN: 46, fS: 26, fZ: 44, fE: 16, off: 17, gap: 30, ex: false }
+    : { W: 1000, H: 720, R: 74, P: { G: [500, 165], S: [185, 555], L: [815, 555] }, fN: 32, fS: 17, fZ: 36, fE: 14, off: 15, gap: 26, ex: true };
+  dsvg.setAttribute('viewBox', `0 0 ${L.W} ${L.H}`);
+  dsvg.innerHTML = '';
+  diagEl.classList.toggle('pt', portrait);
+  const defs = svgEl('defs', {}, dsvg);
+  const glow = svgEl('filter', { id: 'dglow', x: '-60%', y: '-60%', width: '220%', height: '220%' }, defs);
+  svgEl('feGaussianBlur', { stdDeviation: 5, result: 'b' }, glow);
+  const mg = svgEl('feMerge', {}, glow); svgEl('feMergeNode', { in: 'b' }, mg); svgEl('feMergeNode', { in: 'SourceGraphic' }, mg);
+  // 水平线的包围盒高度为 0，按 objectBoundingBox 计算的滤镜区域会让它整条消失
+  const glowL = svgEl('filter', { id: 'dglowL', filterUnits: 'userSpaceOnUse', x: -60, y: -60, width: L.W + 120, height: L.H + 120 }, defs);
+  svgEl('feGaussianBlur', { stdDeviation: 5, result: 'b' }, glowL);
+  const mgL = svgEl('feMerge', {}, glowL); svgEl('feMergeNode', { in: 'b' }, mgL); svgEl('feMergeNode', { in: 'SourceGraphic' }, mgL);
+  for (const [id, h] of [['aw', HUE.HOT], ['ac', HUE.COLD]]) {
+    const m = svgEl('marker', { id, viewBox: '0 0 10 10', refX: 5, refY: 5, markerWidth: 4.2, markerHeight: 4.2, orient: 'auto' }, defs);
+    svgEl('path', { d: 'M0,0 L10,5 L0,10 z', fill: `hsl(${h},100%,62%)` }, m);
+  }
+  const P = L.P, cx = (P.S[0] + P.L[0] + P.G[0]) / 3, cy = (P.S[1] + P.L[1] + P.G[1]) / 3;
+  const gE = svgEl('g', {}, dsvg), gN = svgEl('g', {}, dsvg);
+  const edges = DEDGE.map(([a, b, name, warm, ex, grp], idx) => {
+    const [ax, ay] = P[a], [bx, by] = P[b];
+    let ux = bx - ax, uy = by - ay; const len = Math.hypot(ux, uy); ux /= len; uy /= len;
+    let nx = -uy, ny = ux;
+    if (((ax + bx) / 2 - cx) * nx + ((ay + by) / 2 - cy) * ny < 0) { nx = -nx; ny = -ny; }
+    if (!warm) { nx = -nx; ny = -ny; }
+    const r = L.R + 16, sx = ax + ux * r + nx * L.off, sy = ay + uy * r + ny * L.off, ex2 = bx - ux * r + nx * L.off, ey2 = by - uy * r + ny * L.off;
+    const col = `hsl(${warm ? HUE.HOT : HUE.COLD},100%,${warm ? 60 : 64}%)`;
+    const line = svgEl('line', { x1: sx, y1: sy, x2: sx, y2: sy, stroke: col, 'stroke-width': 3, 'stroke-linecap': 'round', class: 'dl', filter: 'url(#dglowL)' }, gE);
+    const dots = [0, 1, 2].map(() => svgEl('circle', { r: 5, fill: col, filter: 'url(#dglow)', opacity: 0 }, gE));
+    svgEl('line', { x1: sx, y1: sy, x2: ex2, y2: ey2, stroke: 'transparent', 'stroke-width': 30, class: 'hit', 'data-e': idx }, gE);
+    const f = warm || grp === 0 ? .5 : .6;
+    const gap = L.gap + (grp && warm ? 8 : 0);
+    let lx = lerp(sx, ex2, f) + nx * gap, ly = lerp(sy, ey2, f) + ny * gap;
+    const anchor = nx > .35 ? 'start' : nx < -.35 ? 'end' : 'middle';
+    const heat = warm ? '▲ 吸热' : '▼ 放热';
+    const lines = [[name, L.fN, 900, col]];
+    if (!L.ex) lines.push([heat, L.fS, 700, col]);
+    else if (grp === 0) lines.push([`${heat} · 例：${ex}`, L.fS, 700, col]);
+    else lines.push([heat, L.fS, 700, col], ['例：' + ex, L.fS * .92, 600, 'rgba(235,240,255,.78)']);
+    const lh = lines.reduce((s, l) => s + l[1] * 1.25, 0);
+    let y0 = anchor === 'middle' ? (ny > 0 ? ly : ly - lh) : ly - lh / 2;
+    const lab = svgEl('g', { opacity: 0, class: 'hit', 'data-e': idx }, gE);
+    for (const [txt, fs, fw, fill] of lines) {
+      y0 += fs * 1.12;
+      const tx = svgEl('text', { x: lx, y: y0, 'text-anchor': anchor, 'font-size': fs, 'font-weight': fw, fill }, lab);
+      if (fw === 900) tx.setAttribute('filter', 'url(#dglow)');
+      tx.textContent = txt; y0 += fs * .13;
+    }
+    return { a, b, warm, grp, line, dots, lab, sx, sy, ex: ex2, ey: ey2, hc: 1 };
+  });
+  const nodes = {};
+  for (const k of ['G', 'S', 'L']) {
+    const n = DNODE[k], [x, y] = P[k], col = `hsl(${n.h},95%,${n.l}%)`, R = L.R;
+    const g = svgEl('g', { opacity: 0, class: 'hit', 'data-n': k }, gN);
+    const inner = svgEl('g', {}, g);
+    svgEl('circle', { r: R, fill: 'rgba(6,8,28,.9)' }, inner);
+    const clip = svgEl('clipPath', { id: 'dc' + k }, defs); svgEl('circle', { r: R - 4 }, clip);
+    const dg = svgEl('g', { 'clip-path': `url(#dc${k})` }, inner);
+    const pts = [];
+    if (k === 'S') {
+      for (let r = -4; r <= 4; r++) for (let c = -5; c <= 5; c++) {
+        const px = (c + (r & 1 ? .5 : 0)) * R * .25, py = r * R * .217;
+        if (px * px + py * py < (R * .8) ** 2) pts.push({ x: px, y: py, p: Math.random() * 6.3 });
+      }
+    } else if (k === 'L') {
+      for (let i = 0; i < 34; i++) pts.push({ x: (Math.random() * 2 - 1) * R * .78, y: Math.random() * R * .62 + R * .08, p: Math.random() * 6.3, q: Math.random() * 6.3 });
+    } else {
+      for (let i = 0; i < 11; i++) pts.push({ fx: .3 + Math.random() * .5, fy: .3 + Math.random() * .5, px: Math.random(), py: Math.random() });
+    }
+    for (const p of pts) p.el = svgEl('circle', { r: R * .1, fill: col, opacity: .92 }, dg);
+    svgEl('circle', { r: R, fill: 'none', stroke: col, 'stroke-width': 4, filter: 'url(#dglow)' }, inner);
+    const top = k === 'G';
+    const zy = top ? -R - 18 - L.fE * 1.5 : R + L.fZ + 6, ey = top ? -R - 14 : R + L.fZ + L.fE + 18;
+    const zt = svgEl('text', { x: 0, y: zy, 'text-anchor': 'middle', 'font-size': L.fZ, 'font-weight': 900, fill: col, filter: 'url(#dglow)' }, g); zt.textContent = n.zh;
+    const et = svgEl('text', { x: 0, y: ey, 'text-anchor': 'middle', 'font-size': L.fE, 'font-weight': 700, fill: col, opacity: .75, 'letter-spacing': 5, class: 'mono' }, g); et.textContent = n.en;
+    nodes[k] = { g, x, y, pts, R, hc: 1 };
+  }
+  DG = { portrait, L, edges, nodes };
+}
+/* 讲解模式：独立的一图流展示节点，暂停播放、图常驻，点选箭头 / 物态逐项讲解 */
+const PMD = { title: '物态变化 · 一图流', nodes: [.1, .25, .4], edges: [.45, .8, 1.15], key: 1.3 };
+const PM = { on: false, a: 0, t0: 0, sel: null, resume: false };
+let diagLast = 0;
+function diagram(R) {
+  let d = null; for (const x of DIAGS) if (R >= x.r0 && R < x.r0 + x.len) d = x;
+  const u0 = d ? R - d.r0 : 0, tlA = d ? sm(0, .6, u0) * (1 - sm(d.len - .7, d.len, u0)) : 0;
+  const rdt = Math.min(.1, Math.max(0, NOW - diagLast)); diagLast = NOW;
+  PM.a = PM.on ? Math.min(1, PM.a + rdt / .4) : Math.max(0, PM.a - rdt / .4);
+  const pm = PM.on || PM.a > tlA, A = Math.max(tlA, PM.a);
+  setS(diagEl, 'opacity', A.toFixed(3));
+  if (A <= 0) { diagCur = null; return; }
+  buildDiag();
+  const cfg = pm ? PMD : d, u = pm ? NOW - PM.t0 : u0, at = pm ? NOW : R;
+  if (diagCur !== cfg) { diagCur = cfg; $('#dt').textContent = cfg.title; }
+  setS($('#dk'), 'opacity', String(sm(cfg.key, cfg.key + .6, u)));
+  let warmHi = 0, coolHi = 0;
+  if (!pm) {
+    warmHi = sm(d.warm[0], d.warm[0] + .4, u) * (1 - sm(d.warm[1] - .4, d.warm[1], u));
+    coolHi = sm(d.cool[0], d.cool[0] + .4, u) * (1 - sm(d.cool[1] - .4, d.cool[1], u));
+  }
+  const s = pm ? PM.sel : null, kk = 1 - Math.exp(-rdt * 10);
+  const edgeT = (e, i) => s == null ? (pm ? 1 : e.warm ? 1 + warmHi * .9 - coolHi * .7 : 1 + coolHi * .9 - warmHi * .7)
+    : s === 'warm' ? (e.warm ? 1.9 : .3) : s === 'cool' ? (e.warm ? .3 : 1.9)
+    : typeof s === 'number' ? (i === s ? 1.9 : .25) : (e.a === s || e.b === s ? 1.5 : .25);
+  const nodeT = k => s == null || s === 'warm' || s === 'cool' ? 1
+    : typeof s === 'number' ? (DEDGE[s][0] === k || DEDGE[s][1] === k ? 1.08 : .4) : (k === s ? 1.15 : .55);
+  ['G', 'S', 'L'].forEach((k, i) => {
+    const n = DG.nodes[k], pop = sm(cfg.nodes[i], cfg.nodes[i] + .55, u);
+    n.hc += (nodeT(k) - n.hc) * (rdt > 0 ? kk : 1);
+    const sc = (.6 + .4 * pop + .08 * Math.sin(pop * Math.PI)) * Math.max(1, n.hc);
+    n.g.setAttribute('opacity', (pop * Math.min(1, n.hc)).toFixed(3));
+    n.g.setAttribute('transform', `translate(${n.x},${n.y}) scale(${sc.toFixed(3)})`);
+    if (pop <= 0) return;
+    const Rn = n.R;
+    for (const p of n.pts) {
+      let x, y;
+      if (k === 'S') { x = p.x + Rn * .022 * Math.sin(at * 13 + p.p * 5); y = p.y + Rn * .022 * Math.cos(at * 11 + p.p * 3); }
+      else if (k === 'L') { x = p.x + Rn * .13 * Math.sin(at * 1.3 + p.p); y = p.y + Rn * .08 * Math.sin(at * 1.9 + p.q) + Rn * .05 * Math.sin(p.x * .05 + at * 2); }
+      else { x = (tri(at * p.fx + p.px) * 2 - 1) * Rn * .72; y = (tri(at * p.fy + p.py) * 2 - 1) * Rn * .72; }
+      p.el.setAttribute('cx', x.toFixed(1)); p.el.setAttribute('cy', y.toFixed(1));
+    }
+  });
+  DG.edges.forEach((e, i) => {
+    const st0 = cfg.edges[e.grp], p = sm(st0, st0 + .8, u);
+    e.hc += (edgeT(e, i) - e.hc) * (rdt > 0 && pm ? kk : 1);
+    const hi = e.hc, op = p > 0 ? clamp(hi, .2, 1) : 0;
+    const x2 = lerp(e.sx, e.ex, p), y2 = lerp(e.sy, e.ey, p);
+    e.line.setAttribute('x2', x2.toFixed(1)); e.line.setAttribute('y2', y2.toFixed(1));
+    e.line.setAttribute('opacity', op.toFixed(3));
+    e.line.setAttribute('stroke-width', (3 + Math.max(0, hi - 1) * 4.5).toFixed(2));
+    if (p > .9) e.line.setAttribute('marker-end', `url(#${e.warm ? 'aw' : 'ac'})`); else e.line.removeAttribute('marker-end');
+    e.dots.forEach((c, k) => {
+      const q = (at * .45 + k / 3) % 1;
+      c.setAttribute('opacity', q < p ? (op * clamp(hi, .4, 1)).toFixed(3) : '0');
+      c.setAttribute('cx', lerp(e.sx, e.ex, q).toFixed(1)); c.setAttribute('cy', lerp(e.sy, e.ey, q).toFixed(1));
+      c.setAttribute('r', (4 + Math.max(0, hi - 1) * 4).toFixed(1));
+    });
+    e.lab.setAttribute('opacity', (sm(st0 + .4, st0 + 1, u) * clamp(hi, .3, 1)).toFixed(3));
+  });
+}
+const STATE_SCENE = { S: '固态', L: '液态', G: '气态' };
+const GROUP_INFO = {
+  warm: { t: '▲ 吸热 · 橙色外圈', h: HUE.HOT, r: '熔化 · 汽化 · 升华', bl: ['沿 固 → 液 → 气 的方向，温度升高', '分子获得能量，挣脱分子间作用力', '例：冰化成水、水烧开、干冰变少'] },
+  cool: { t: '▼ 放热 · 蓝色内圈', h: HUE.COLD, r: '凝固 · 液化 · 凝华', bl: ['沿 气 → 液 → 固 的方向，温度降低', '分子失去能量，重新被作用力拉在一起', '例：水结成冰、露珠、霜和雾凇'] },
+};
+function setInfo() {
+  const s = PM.sel, li = a => `<ul>${a.map(x => `<li>${x}</li>`).join('')}</ul>`;
+  let h;
+  if (s == null) {
+    h = `<div class="ih">讲解模式</div><div class="ir">点击箭头或物态，查看详情</div>` +
+      (COARSE ? '' : `<div class="kb">←/→ 逐个讲解 · 1–6 直达<br>W 吸热 · C 放热 · A 全部 · Esc 退出</div>`);
+  } else if (s === 'warm' || s === 'cool') {
+    const g = GROUP_INFO[s];
+    h = `<div class="ih" style="color:hsl(${g.h},100%,64%)">${g.t}</div><div class="ir">${g.r}</div>${li(g.bl)}`;
+  } else {
+    const isE = typeof s === 'number', sc = SCENES.find(x => x.name === (isE ? DEDGE[s][2] : STATE_SCENE[s]));
+    const col = isE ? `hsl(${DEDGE[s][3] ? HUE.HOT : HUE.COLD},100%,64%)` : `hsl(${DNODE[s].h},95%,${DNODE[s].l}%)`;
+    const sub = isE ? `${DNODE[DEDGE[s][0]].zh} → ${DNODE[DEDGE[s][1]].zh} · ${DEDGE[s][3] ? '▲ 吸热' : '▼ 放热'}` : `CHAPTER ${sc.no}`;
+    h = `<div class="ih" style="color:${col}">${sc.zh} <small>${sc.en}</small></div><div class="ir">${sub}</div>${li(sc.bl)}` +
+      `<button class="go" data-go="${sc.t}">▶ 看这一章</button>`;
+  }
+  $('#dinfo').innerHTML = h;
+  for (const b of $('#dtools').children) b.classList.toggle('on', b.dataset.s === (s == null ? 'all' : String(s)));
+}
+function pmSel(s, toggle = true) { PM.sel = toggle && PM.sel === s ? null : s; setInfo(); }
+function enterPM() {
+  if (PM.on || J || !started()) return;
+  const inTl = DIAGS.some(x => T >= x.r0 + 2 && T < x.r0 + x.len);
+  PM.on = true; PM.resume = playing; PM.sel = null; PM.t0 = inTl || PM.a > .5 ? NOW - 10 : NOW;
+  setPlaying(false); diagEl.classList.add('pm'); $('#bDiag').classList.add('on'); setInfo(); hideUI(true);
+}
+function exitPM(resume = PM.resume) {
+  if (!PM.on) return;
+  PM.on = false; diagEl.classList.remove('pm'); $('#bDiag').classList.remove('on');
+  if (resume) setPlaying(true);
+  showUI();
+}
+diagEl.addEventListener('click', e => {
+  if (!PM.on) return;
+  const go = e.target.closest('[data-go]');
+  if (go) { const t = +go.dataset.go; exitPM(false); jumpTo(t + .01); return; }
+  const tb = e.target.closest('[data-s]');
+  if (tb) { const s = tb.dataset.s; s === 'exit' ? exitPM() : pmSel(s === 'all' ? null : s, false); return; }
+  const ed = e.target.closest('[data-e]');
+  if (ed) { pmSel(+ed.getAttribute('data-e')); return; }
+  const nd = e.target.closest('[data-n]');
+  if (nd) { pmSel(nd.getAttribute('data-n')); return; }
+  if (!e.target.closest('#dinfo')) pmSel(null, false);
+});
+const tri = u => { u = ((u % 1) + 1) % 1; return u < .5 ? u * 2 : 2 - u * 2; };
+
+/* ============================== 音频（转场音效 + 自选背景音乐） ============================== */
+const bgm = new Audio(); bgm.loop = true; bgm.preload = 'auto';
+const AU = {
+  ctx: null, muted: false, sfxOn: true, hasBgm: false,
+  init() {
+    if (this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    const C = this.ctx = new AC();
+    this.out = C.createGain(); this.out.connect(C.destination);
+    this.master = C.createGain(); this.master.gain.value = .0001;
+    const comp = C.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+    this.master.connect(comp); comp.connect(this.out);
+    this.verb = C.createConvolver(); this.verb.buffer = this.impulse(2.8);
+    const vg = C.createGain(); vg.gain.value = .32; this.verb.connect(vg); vg.connect(this.master);
+    const len = C.sampleRate; this.nbuf = C.createBuffer(1, len, C.sampleRate);
+    const d = this.nbuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.musicG = C.createGain(); this.musicG.gain.value = 0; this.musicG.connect(this.out);
+    C.createMediaElementSource(bgm).connect(this.musicG);
+  },
+  impulse(sec) {
+    const C = this.ctx, len = C.sampleRate * sec | 0, b = C.createBuffer(2, len, C.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    return b;
+  },
+  env(g, time, peak, a, d) { g.gain.setValueAtTime(.0001, time); g.gain.exponentialRampToValueAtTime(peak, time + a); g.gain.exponentialRampToValueAtTime(.0001, time + a + d); },
+  setBgm(file) {
+    if (bgm.src) URL.revokeObjectURL(bgm.src);
+    bgm.src = URL.createObjectURL(file); this.hasBgm = true;
+    bgm.onloadedmetadata = () => this.syncBgm(T, true);
+  },
+  bgmPos(t) { const d = bgm.duration; return d && isFinite(d) ? t % d : t; },
+  syncBgm(t, force) {
+    if (!this.hasBgm || !this.ctx) return;
+    if (!playing) { if (!bgm.paused) bgm.pause(); if (force) bgm.currentTime = this.bgmPos(t); return; }
+    const want = this.bgmPos(t);
+    if (force || Math.abs(bgm.currentTime - want) > .25) bgm.currentTime = want;
+    if (bgm.paused) bgm.play().catch(() => {});
+  },
+  resync() { this.syncBgm(T, true); },
+  update(t) {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime, fadeOut = 1 - sm(TOTAL - 2.5, TOTAL, t);
+    this.master.gain.setTargetAtTime(this.sfxOn ? Math.max(.0001, .85 * fadeOut) : .0001, now, .03);
+    this.musicG.gain.setTargetAtTime(.8 * sm(0, 1, t) * fadeOut * (1 - .65 * warpA), now, .1);
+    this.out.gain.setTargetAtTime(this.muted || leaveT >= 0 ? 0 : 1, now, leaveT >= 0 ? .12 : .02);
+    if (!J || J.ph === 'in') this.syncBgm(t, false);
+  },
+  whoosh() {
+    if (!this.ctx || !this.sfxOn) return; const C = this.ctx, time = C.currentTime;
+    const s = C.createBufferSource(), f = C.createBiquadFilter(), g = C.createGain();
+    s.buffer = this.nbuf; s.loop = true; f.type = 'bandpass'; f.Q.value = 1.4;
+    f.frequency.setValueAtTime(200, time); f.frequency.exponentialRampToValueAtTime(4000, time + .9);
+    g.gain.setValueAtTime(0, time); g.gain.linearRampToValueAtTime(.26, time + .55); g.gain.linearRampToValueAtTime(0, time + 1.2);
+    s.connect(f); f.connect(g); g.connect(this.master); g.connect(this.verb); s.start(time); s.stop(time + 1.3);
+  },
+  boom(v) {
+    if (!this.ctx || !this.sfxOn) return; const C = this.ctx, time = C.currentTime;
+    const o = C.createOscillator(), g = C.createGain();
+    o.frequency.setValueAtTime(100, time); o.frequency.exponentialRampToValueAtTime(28, time + .9);
+    this.env(g, time, v, .005, 1.6); o.connect(g); g.connect(this.master); o.start(time); o.stop(time + 1.8);
+    const s = C.createBufferSource(), f = C.createBiquadFilter(), g2 = C.createGain();
+    s.buffer = this.nbuf; f.type = 'lowpass'; f.frequency.value = 500; this.env(g2, time, v * .5, .005, .8);
+    s.connect(f); f.connect(g2); g2.connect(this.master); g2.connect(this.verb); s.start(time); s.stop(time + 1);
+  },
+};
+const TEV = [
+  { t: .3, f: () => { flashK = 1.2; AU.boom(.9); } },
+  { t: IP + .1, f: () => AU.whoosh() },
+  { t: toR(5.5), f: () => AU.whoosh() },
+  ...SCENES.slice(1).map(s => ({ t: s.t, f: () => AU.whoosh() })),
+  { t: toR(PH1 + .8), f: () => { flashK = .8; AU.boom(.6); } },
+];
+
+/* ============================== 主循环 ============================== */
+let T = 0, playing = false, last = performance.now(), lastRT = 0, leaveT = -1, forceFx = false;
+let J = null, warpA = 0;
+const tgtK = R => { const t = story(R); return t < PH0 ? 0 : Math.min(KMAX, Math.floor((t - PH0) * HZ)); };
+const edgeCol = new THREE.Color(), tmpCol = new THREE.Color();
+
+function seekPrep(t0) {
+  const tk = tgtK(t0);
+  let best = -1; for (const k of snaps.keys()) if (k <= tk && k > best) best = k;
+  if (st.k > tk) { if (best >= 0) restore(snaps.get(best)); else reset(); }
+  else if (best > st.k) restore(snaps.get(best));
+  return tk;
+}
+function seekFinish(t0) {
+  computeB(PH0 + st.k / HZ);
+  for (let i = 0; i < N; i++) SP[i] = Math.hypot(st.vx[i], st.vy[i], st.vz[i]);
+  T = t0; lastRT = t0; snapSurf = true; lastSi = -1;
+  AU.resync();
+}
+function seek(t0) {
+  t0 = clamp(t0, 0, TOTAL);
+  const tk = seekPrep(t0);
+  while (st.k < tk) stepOnce();
+  seekFinish(t0);
+}
+
+/* 章节跳转：模糊 + 章节卡淡入 → 分帧快进物理 → 淡出，粒子从旧位置飞到新状态 */
+const warp = $('#warp');
+function warpCard(si) {
+  const s = SCENES[si];
+  warp.style.setProperty('--hc', `hsl(${s.hue},100%,68%)`);
+  warp.style.background = `radial-gradient(ellipse at 50% 50%,hsla(${s.hue},100%,45%,.2) 0%,rgba(3,3,12,.8) 72%)`;
+  $('#wno').textContent = s.no ? `CHAPTER ${s.no} / 09` : ({ 序章: 'PROLOGUE', 总结: 'RECAP' })[s.name] || 'EPILOGUE';
+  $('#wzh').textContent = s.zh || s.name;
+  $('#wen').textContent = s.en || ({ 序章: 'STATES OF MATTER', 总结: 'SUMMARY' })[s.name] || 'THE END';
+  $('#wpg i').style.width = '0%';
+}
+function jumpTo(t0) {
+  if (PM.on) exitPM(false);
+  t0 = clamp(t0, 0, TOTAL);
+  if (J && J.to === t0) return;
+  if (!J || J.ph === 'in') { MF.set(RP); mT0 = Infinity; }
+  J = { to: t0, ph: 'out', t: 0, tk: 0, k0: 0 };
+  warpCard(sceneIdx(t0));
+  if (AU.ctx) AU.ctx.resume();
+  AU.whoosh();
+}
+function jumpTick(dt) {
+  J.t += dt;
+  if (J.ph === 'out') {
+    warpA = Math.min(1, warpA + dt / .3);
+    if (warpA >= 1) { J.ph = 'seek'; J.t = 0; J.k0 = st.k; J.tk = seekPrep(J.to); J.k0 = Math.min(J.k0, st.k); }
+  } else if (J.ph === 'seek') {
+    const t1 = performance.now();
+    while (st.k < J.tk && performance.now() - t1 < 10) for (let n = 0; n < 6 && st.k < J.tk; n++) stepOnce();
+    const span = J.tk - J.k0;
+    $('#wpg i').style.width = (span > 0 ? clamp((st.k - J.k0) / span) * 100 : 100).toFixed(1) + '%';
+    if (st.k >= J.tk && J.t >= .2) {
+      seekFinish(J.to); forceFx = true; mT0 = NOW; J.ph = 'in';
+      setPlaying(true);
+    }
+  } else {
+    warpA = Math.max(0, warpA - dt / .7);
+    if (warpA <= 0) J = null;
+  }
+  warp.style.opacity = warpA.toFixed(3);
+  warp.style.visibility = warpA > 0 ? 'visible' : 'hidden';
+  warp.style.setProperty('--k', warpA.toFixed(3));
+}
+
+function render(R, dt, rdt) {
+  const t = story(R), si = sceneIdx(R);
+  if (dt > 0) for (const e of TEV) if (lastRT < e.t && R >= e.t) e.f();
+  if (si !== lastSi) {
+    const fx = (lastSi >= 0 && dt > 0) || forceFx; forceFx = false;
+    setPanel(si, fx); if (fx && si > 0) { ringT = R; flashK = Math.max(flashK, .7); } lastSi = si;
+  }
+
+  rig.rotation.z = rigPhi(t); rig.position.x = rigDx(t);
+  positions(t, R);
+  const lk = applyMorph();
+  if (inPhys(t)) { const k = dt > 0 ? .15 : 1; for (let i = 0; i < N; i++) SP[i] += (Math.hypot(st.vx[i], st.vy[i], st.vz[i]) - SP[i]) * k; }
+  colorsAndMatrices(t, R); fillBonds(t, lk); fillStreaks(t, lk); surface(t, dt, lk);
+
+  const boxA = sm(5, 7, t) * (1 - sm(PH1, PH1 + 1.5, t));
+  edgeMat.opacity = boxA; glassMat.opacity = .035 * boxA; plateMat.opacity = boxA; plate.visible = boxA > .01;
+  tmpCol.setHSL(SCENES[si].hue / 360, 1, .62);
+  edgeCol.lerp(tmpCol, rdt > 0 ? 1 - Math.exp(-rdt * 3) : 1); edgeMat.color.copy(edgeCol);
+  disc.material.color.copy(edgeCol);
+  const heat = trHeat(t);
+  if (heat >= 0) { plateMat.emissive.setRGB(heat * 1.4, .35 * heat * 1.4, .06 * heat * 1.4); heatLight.color.setRGB(1, .45, .15); }
+  else { plateMat.emissive.setRGB(.15 * -heat * .5, .65 * -heat * .5, -heat * .5); heatLight.color.setRGB(.3, .75, 1); }
+  heatLight.intensity = Math.abs(heat) * (heat >= 0 ? 7 : 3.5) * boxA;
+
+  const ru = (R - ringT) / 1.4;
+  if (ru >= 0 && ru < 1) { ring.scale.setScalar(4 + 26 * ru); ringMat.opacity = (1 - ru) * .9; ringMat.color.copy(tmpCol); } else ringMat.opacity = 0;
+  bloom.strength = BLOOM + flashK * .6; flashK *= Math.exp(-rdt * 4);
+
+  if (!userCam) {
+    const want = ((t < PH0 ? lerp(34, 25, sm(5, 8, t)) : t >= PH1 ? lerp(25, 32, sm(PH1, PH1 + 3, t)) : 25) + 7 * warpA) * camFit;
+    const off = camera.position.clone().sub(controls.target), d = off.length();
+    off.multiplyScalar(lerp(d, want, rdt > 0 ? 1 - Math.exp(-rdt * 1.5) : 1) / d); camera.position.copy(controls.target).add(off);
+  }
+  controls.autoRotate = playing || warpA > 0; controls.autoRotateSpeed = .55 + 5 * warpA; controls.update();
+  composer.render();
+
+  let sv = 0, so = 0; for (let i = 0; i < N; i++) { sv += SP[i]; so += B[i]; }
+  hud(R, t, clamp(sv / N / 8), inPhys(t) ? so / N : 1);
+  AU.update(R);
+}
+
+function loop(now) {
+  let dt = (now - last) / 1000; last = now; if (dt > .1) dt = .1; NOW = now / 1000;
+  if (J) jumpTick(dt);
+  const live = !J || J.ph === 'in', run = playing && live;
+  if (run) { T += dt; if (T >= TOTAL) { T = TOTAL; setPlaying(false); showUI(); } }
+  if (live) { const tk = tgtK(T); let n = 0; while (st.k < tk && n < 8) { stepOnce(); n++; } }
+  render(T, run ? dt : 0, dt);
+  lastRT = T; updateUI();
+  requestAnimationFrame(loop);
+}
+function resize() {
+  const w = innerWidth, h = innerHeight, a = w / h;
+  renderer.setSize(w, h); composer.setSize(w, h);
+  camera.aspect = a;
+  camFit = Math.max(1, 6.6 / (Math.tan(19 * Math.PI / 180) * a) / 25);
+  controls.maxDistance = 45 * camFit;
+  if (a > 1.25) camera.setViewOffset(w, h, w * .1, 0, w, h); else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+  if (DG) buildDiag();
+}
+addEventListener('resize', resize); resize();
+
+/* ============================== 控制 ============================== */
+const ui = $('#ui');
+SCENES.forEach(s => {
+  const b = document.createElement('button'); b.textContent = s.name;
+  b.onclick = () => jumpTo(s.t + .01);
+  chaps.appendChild(b);
+});
+let lastUI = '';
+function updateUI() {
+  const key = playing + '|' + Math.floor(T); if (key === lastUI) return; lastUI = key;
+  $('#bPlay').textContent = playing ? '⏸' : '▶';
+  $('#time').textContent = `${fmt(T)} / ${fmt(TOTAL)}`;
+}
+function setPlaying(p) {
+  playing = p;
+  if (AU.ctx) p ? AU.ctx.resume() : AU.ctx.suspend();
+  AU.syncBgm(T, true);
+  if (p && uiShown) armHide();
+}
+
+/* 控制栏：鼠标移动 / 点击画面显示；再次点击控制栏以外区域隐藏；播放中闲置自动隐藏 */
+const started = () => $('#start').style.display === 'none';
+let uiShown = false, uiHover = false, pinHidden = false, hideT = 0;
+function armHide() {
+  clearTimeout(hideT);
+  hideT = setTimeout(() => { if (playing && !uiHover) hideUI(); }, COARSE ? 4000 : 2600);
+}
+function showUI() { ui.classList.remove('hide'); uiShown = true; pinHidden = false; armHide(); }
+function hideUI(pin) { ui.classList.add('hide'); uiShown = false; pinHidden = !!pin; clearTimeout(hideT); }
+ui.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') { uiHover = true; clearTimeout(hideT); } });
+ui.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') { uiHover = false; armHide(); } });
+ui.addEventListener('pointerdown', () => armHide());
+addEventListener('pointermove', e => {
+  if (e.pointerType !== 'mouse' || !started() || down) return;
+  if (!pinHidden || e.clientY > innerHeight - 140) { if (!uiShown) showUI(); else if (!uiHover) armHide(); }
+});
+
+const ptrs = new Set();
+let down = null;
+addEventListener('pointerdown', e => {
+  ptrs.add(e.pointerId);
+  if (ptrs.size > 1) { if (down && down.cv) userCam = true; down = null; return; }
+  down = ui.contains(e.target) || (PM.on && diagEl.contains(e.target)) ? null : { x: e.clientX, y: e.clientY, t: performance.now(), cv: e.target === cv, moved: false };
+});
+addEventListener('pointermove', e => {
+  if (!down || down.moved || Math.hypot(e.clientX - down.x, e.clientY - down.y) < 8) return;
+  down.moved = true; if (down.cv) userCam = true;
+});
+const endPtr = e => {
+  ptrs.delete(e.pointerId);
+  const d = down; down = null;
+  if (e.type !== 'pointerup' || !d || d.moved || performance.now() - d.t > 450 || !started()) return;
+  uiShown ? hideUI(true) : showUI();
+};
+addEventListener('pointerup', endPtr); addEventListener('pointercancel', endPtr);
+
+$('#go').onclick = () => { AU.init(); if (AU.ctx) AU.ctx.resume(); $('#start').style.display = 'none'; seek(0); setPlaying(true); showUI(); };
+$('#bPlay').onclick = () => { if (PM.on) exitPM(true); else if (T >= TOTAL) jumpTo(0); else setPlaying(!playing); };
+$('#bDiag').onclick = () => PM.on ? exitPM() : enterPM();
+$('#bRestart').onclick = () => jumpTo(0);
+$('#bMute').onclick = () => { AU.muted = !AU.muted; $('#bMute').textContent = AU.muted ? '🔇' : '🔊'; };
+$('#bSfx').onclick = () => { AU.sfxOn = !AU.sfxOn; $('#bSfx').classList.toggle('on', AU.sfxOn); $('#bSfx').textContent = AU.sfxOn ? '✦ 音效' : '✧ 音效关'; };
+$('#pickBgm').onclick = $('#bBgm').onclick = () => $('#bgmFile').click();
+$('#bgmFile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  AU.setBgm(f);
+  const name = f.name.replace(/\.[^.]+$/, '');
+  $('#pickBgm').textContent = '🎵 ' + name + '（点击更换）';
+  $('#bBgm').textContent = '🎵 ' + (name.length > 10 ? name.slice(0, 10) + '…' : name); $('#bBgm').title = f.name;
+  e.target.value = '';
+};
+{
+  const de = document.documentElement, req = de.requestFullscreen || de.webkitRequestFullscreen;
+  const exit = document.exitFullscreen || document.webkitExitFullscreen;
+  if (!req) $('#bFull').style.display = 'none';
+  $('#bFull').onclick = () => { if (!req) return; (document.fullscreenElement || document.webkitFullscreenElement) ? exit.call(document) : req.call(de); };
+}
+$('#to2d').onclick = e => {
+  e.preventDefault(); if (leaveT >= 0) return;
+  const href = e.currentTarget.href; leaveT = NOW;
+  setTimeout(() => { location.href = href; }, 450);
+};
+addEventListener('pageshow', e => { if (e.persisted) leaveT = -1; });
+if (COARSE) $('#tip').textContent = '单指拖动旋转 · 双指缩放 · 轻点画面显示/隐藏控制栏 · 时长约 2 分 18 秒';
+addEventListener('keydown', e => {
+  if ($('#start').style.display !== 'none') return;
+  if (PM.on) {
+    const k = e.key.toLowerCase();
+    if (k === 'escape' || k === 'd') exitPM();
+    else if (e.code === 'Space') { e.preventDefault(); exitPM(true); }
+    else if (k === 'arrowright' || k === 'arrowleft') {
+      const c = typeof PM.sel === 'number' ? PM.sel : (k === 'arrowright' ? -1 : DEDGE.length);
+      pmSel((c + (k === 'arrowright' ? 1 : -1) + DEDGE.length) % DEDGE.length, false);
+    }
+    else if (k >= '1' && k <= String(DEDGE.length)) pmSel(+k - 1, false);
+    else if (k === 'w') pmSel('warm', false);
+    else if (k === 'c') pmSel('cool', false);
+    else if (k === 'a') pmSel(null, false);
+    else if (k === 'm') $('#bMute').click();
+    else if (k === 'f') $('#bFull').click();
+    return;
+  }
+  if (e.key === 'd' || e.key === 'D') { enterPM(); return; }
+  if (e.code === 'Space') { e.preventDefault(); $('#bPlay').click(); }
+  else if (e.key === 'r' || e.key === 'R') $('#bRestart').click();
+  else if (e.key === 'm' || e.key === 'M') $('#bMute').click();
+  else if (e.key === 's' || e.key === 'S') $('#bSfx').click();
+  else if (e.key === 'f' || e.key === 'F') $('#bFull').click();
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    const si = sceneIdx(J ? J.to : T) + (e.key === 'ArrowRight' ? 1 : -1);
+    if (si >= 0 && si < SCENES.length) jumpTo(SCENES[si].t + .01);
+  }
+  showUI();
+});
+console.debug(`© ${new Date().getFullYear()} ${AUTHOR} · All rights reserved.`);
+
+// 调试：?t=秒数 直接跳到该时刻（静音）；&pause 暂停在该帧
+const qs = new URLSearchParams(location.search);
+reset();
+if (qs.has('debug')) window.__sim = { seek, jumpTo, setPlaying, st, B, get T() { return T; }, get J() { return J; }, get warpA() { return warpA; }, PM, enterPM, exitPM, pmSel };
+if (qs.has('t')) { $('#start').style.display = 'none'; seek(+qs.get('t')); setPlaying(!qs.has('pause')); }
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

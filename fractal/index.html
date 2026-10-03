@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>无限分形探索器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0f; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; height: 100vh; }
+  canvas { display: block; cursor: crosshair; position: absolute; top: 0; left: 0; }
+  #canvas2d { z-index: 1; pointer-events: none; display: none; }
+  #canvasGL { z-index: 1; }
+  .controls {
+    position: fixed; top: 20px; left: 20px; z-index: 100;
+    background: rgba(10, 10, 20, 0.88); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 16px;
+    padding: 20px; min-width: 280px; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    max-height: calc(100vh - 40px); overflow-y: auto;
+  }
+  .controls h2 {
+    font-size: 18px; margin-bottom: 14px;
+    background: linear-gradient(135deg, #a78bfa, #60a5fa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;
+  }
+  .control-group { margin-bottom: 12px; }
+  .control-group label { display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .btn-group { display: flex; gap: 5px; flex-wrap: wrap; }
+  .btn {
+    padding: 5px 11px; border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.05); color: #ccc;
+    border-radius: 8px; cursor: pointer; font-size: 12px; transition: all 0.2s;
+  }
+  .btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+  .btn.active { background: linear-gradient(135deg, rgba(167,139,250,0.3), rgba(96,165,250,0.3)); border-color: rgba(167,139,250,0.5); color: #fff; }
+  .sep { height: 1px; background: rgba(255,255,255,0.06); margin: 14px 0; }
+  .info {
+    position: fixed; bottom: 20px; left: 20px; z-index: 100;
+    background: rgba(10,10,20,0.85); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+    padding: 14px 18px; font-size: 12px; color: #888; font-family: 'Consolas', monospace; line-height: 1.8;
+  }
+  .info span { color: #a78bfa; }
+  .hint {
+    position: fixed; bottom: 20px; right: 20px; z-index: 100;
+    background: rgba(10,10,20,0.7); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 10px;
+    padding: 10px 16px; font-size: 12px; color: #666;
+  }
+  input[type=range] { width: 100%; accent-color: #a78bfa; margin-top: 2px; }
+  .color-btns { display: flex; gap: 4px; }
+  .color-btn { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: all 0.2s; }
+  .color-btn:hover, .color-btn.active { border-color: #fff; transform: scale(1.15); }
+  .fps { position: fixed; top: 20px; right: 20px; z-index: 100; background: rgba(10,10,20,0.7); border-radius: 8px; padding: 6px 12px; font-size: 12px; color: #a78bfa; font-family: monospace; }
+  #glControls, #geoControls { transition: opacity 0.2s; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<canvas id="canvasGL"></canvas>
+<canvas id="canvas2d"></canvas>
+<div class="fps" id="fps">-- FPS</div>
+
+<div class="controls">
+  <h2>✦ 无限分形探索器</h2>
+
+  <div class="control-group">
+    <label>分形类型</label>
+    <div class="btn-group" id="typeGroup">
+      <button class="btn active" data-fractal="mandelbrot">Mandelbrot</button>
+      <button class="btn" data-fractal="julia">Julia</button>
+      <button class="btn" data-fractal="burning">燃烧船</button>
+      <button class="btn" data-fractal="tricorn">Tricorn</button>
+      <button class="btn" data-fractal="koch">科赫雪花</button>
+      <button class="btn" data-fractal="sierpinski">谢尔宾斯基</button>
+      <button class="btn" data-fractal="tree">分形树</button>
+      <button class="btn" data-fractal="dragon">龙形曲线</button>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- WebGL 分形控制 -->
+  <div id="glControls">
+    <div class="control-group">
+      <label>配色方案</label>
+      <div class="color-btns">
+        <div class="color-btn active" data-palette="0" style="background:linear-gradient(135deg,#a78bfa,#60a5fa)"></div>
+        <div class="color-btn" data-palette="1" style="background:linear-gradient(135deg,#f97316,#ef4444)"></div>
+        <div class="color-btn" data-palette="2" style="background:linear-gradient(135deg,#06b6d4,#3b82f6)"></div>
+        <div class="color-btn" data-palette="3" style="background:linear-gradient(135deg,#22d3ee,#a855f7)"></div>
+        <div class="color-btn" data-palette="4" style="background:linear-gradient(135deg,#22c55e,#eab308)"></div>
+      </div>
+    </div>
+    <div class="control-group">
+      <label>迭代次数: <span id="iterLabel">256</span></label>
+      <input type="range" id="iterSlider" min="64" max="2048" value="256" step="16">
+    </div>
+    <div class="control-group">
+      <button class="btn" id="animateBtn" style="width:100%;text-align:center">▶ 自动缩放动画</button>
+    </div>
+  </div>
+
+  <!-- 几何分形控制 -->
+  <div id="geoControls" class="hidden">
+    <div class="control-group">
+      <label>递归深度: <span id="depthLabel">5</span></label>
+      <input type="range" id="depthSlider" min="1" max="12" value="5" step="1">
+    </div>
+    <div class="control-group">
+      <label>线条颜色</label>
+      <div class="color-btns">
+        <div class="color-btn active" data-geoColor="0" style="background:linear-gradient(135deg,#a78bfa,#60a5fa)"></div>
+        <div class="color-btn" data-geoColor="1" style="background:linear-gradient(135deg,#f97316,#ef4444)"></div>
+        <div class="color-btn" data-geoColor="2" style="background:linear-gradient(135deg,#06b6d4,#22d3ee)"></div>
+        <div class="color-btn" data-geoColor="3" style="background:linear-gradient(135deg,#22c55e,#a3e635)"></div>
+      </div>
+    </div>
+    <div class="control-group">
+      <button class="btn" id="geoAnimBtn" style="width:100%;text-align:center">▶ 生长动画</button>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+  <div class="control-group">
+    <button class="btn" id="resetBtn" style="width:100%;text-align:center">⟳ 重置视角</button>
+  </div>
+</div>
+
+<div class="info">
+  缩放: <span id="zoomInfo">1x</span><br>
+  中心: <span id="centerInfo">(0, 0)</span>
+</div>
+<div class="hint" id="hintText">🖱 滚轮缩放 · 拖拽平移 · 双击聚焦</div>
+
+<!-- 顶点着色器 -->
+<script id="vs" type="x-shader/x-vertex">
+attribute vec2 a_pos;
+void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
+</script>
+
+<!-- 片段着色器 -->
+<script id="fs" type="x-shader/x-fragment">
+precision highp float;
+uniform vec2 u_resolution;
+uniform vec2 u_center;
+uniform float u_zoom;
+uniform int u_maxIter;
+uniform int u_type;
+uniform int u_palette;
+uniform vec2 u_julia;
+
+vec3 palette(float t, int mode) {
+  if (mode == 0) return 0.5 + 0.5*cos(6.28318*(t*vec3(1.0)+vec3(0.0,0.33,0.67)));
+  else if (mode == 1) return vec3(min(1.0,t*3.0),max(0.0,min(1.0,t*3.0-1.0)),max(0.0,min(1.0,t*3.0-2.0)));
+  else if (mode == 2) return 0.5+0.5*cos(6.28318*(t*vec3(0.8,1.0,1.0)+vec3(0.5,0.6,0.7)));
+  else if (mode == 3) return 0.5+0.5*cos(6.28318*(t*vec3(1.2,1.0,0.8)+vec3(0.0,0.15,0.35)));
+  else return 0.5+0.5*cos(6.28318*(t*vec3(0.6,1.0,0.6)+vec3(0.3,0.2,0.0)));
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - u_resolution*0.5)/(u_zoom*min(u_resolution.x,u_resolution.y))*3.5;
+  vec2 c0 = uv + u_center;
+  float x,y,cr,ci;
+  if (u_type==1) { x=c0.x; y=c0.y; cr=u_julia.x; ci=u_julia.y; }
+  else { x=0.0; y=0.0; cr=c0.x; ci=c0.y; }
+  float iter=0.0, maxF=float(u_maxIter);
+  for (int i=0;i<2048;i++) {
+    if (i>=u_maxIter) break;
+    float x2=x*x, y2=y*y;
+    if (x2+y2>4.0) break;
+    float nx;
+    if (u_type==2) { nx=x2-y2+cr; y=2.0*abs(x*y)+ci; }
+    else if (u_type==3) { nx=x2-y2+cr; y=-2.0*x*y+ci; }
+    else { nx=x2-y2+cr; y=2.0*x*y+ci; }
+    x=nx; iter+=1.0;
+  }
+  if (iter>=maxF) gl_FragColor=vec4(0,0,0,1);
+  else {
+    float lz=log(x*x+y*y)*0.5;
+    float nu=log(lz/log(2.0))/log(2.0);
+    float si=(iter+1.0-nu)/maxF;
+    gl_FragColor=vec4(palette(si*5.0,u_palette),1.0);
+  }
+}
+</script>
+
+<script>
+// ==================== WebGL 分形 ====================
+const canvasGL = document.getElementById('canvasGL');
+const gl = canvasGL.getContext('webgl', { antialias: false });
+const canvas2d = document.getElementById('canvas2d');
+const ctx = canvas2d.getContext('2d');
+
+let W, H;
+function resize() {
+  W = canvasGL.width = canvas2d.width = window.innerWidth;
+  H = canvasGL.height = canvas2d.height = window.innerHeight;
+  if (gl) gl.viewport(0, 0, W, H);
+}
+resize();
+
+// 编译 WebGL
+let prog, loc;
+if (gl) {
+  function cs(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(s)); return null; }
+    return s;
+  }
+  const v = cs(gl.VERTEX_SHADER, document.getElementById('vs').textContent);
+  const f = cs(gl.FRAGMENT_SHADER, document.getElementById('fs').textContent);
+  prog = gl.createProgram();
+  gl.attachShader(prog, v); gl.attachShader(prog, f); gl.linkProgram(prog); gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+  const aP = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+  loc = {
+    resolution: gl.getUniformLocation(prog,'u_resolution'), center: gl.getUniformLocation(prog,'u_center'),
+    zoom: gl.getUniformLocation(prog,'u_zoom'), maxIter: gl.getUniformLocation(prog,'u_maxIter'),
+    type: gl.getUniformLocation(prog,'u_type'), palette: gl.getUniformLocation(prog,'u_palette'),
+    julia: gl.getUniformLocation(prog,'u_julia'),
+  };
+}
+
+// ==================== 状态 ====================
+const glTypeMap = { mandelbrot: 0, julia: 1, burning: 2, tricorn: 3 };
+const geoTypes = ['koch', 'sierpinski', 'tree', 'dragon'];
+
+let mode = 'gl'; // 'gl' or 'geo'
+let currentFractal = 'mandelbrot';
+
+const state = {
+  centerX: -0.5, centerY: 0, zoom: 1, maxIter: 256, palette: 0,
+  juliaRe: -0.7269, juliaIm: 0.1889,
+  depth: 5, geoColor: 0,
+};
+
+const geoColorSchemes = [
+  ['#a78bfa','#60a5fa','#818cf8','#c084fc'],
+  ['#f97316','#ef4444','#fbbf24','#f59e0b'],
+  ['#06b6d4','#22d3ee','#67e8f9','#0ea5e9'],
+  ['#22c55e','#a3e635','#4ade80','#16a34a'],
+];
+
+// ==================== FPS ====================
+let fc = 0, lt = performance.now();
+function updateFps() {
+  fc++;
+  const n = performance.now();
+  if (n - lt > 500) {
+    document.getElementById('fps').textContent = Math.round(fc/(n-lt)*1000)+' FPS';
+    fc = 0; lt = n;
+  }
+}
+
+// ==================== WebGL 渲染 ====================
+function renderGL() {
+  if (!gl) return;
+  gl.uniform2f(loc.resolution, W, H);
+  gl.uniform2f(loc.center, state.centerX, state.centerY);
+  gl.uniform1f(loc.zoom, state.zoom);
+  gl.uniform1i(loc.maxIter, state.maxIter);
+  gl.uniform1i(loc.type, glTypeMap[currentFractal] || 0);
+  gl.uniform1i(loc.palette, state.palette);
+  gl.uniform2f(loc.julia, state.juliaRe, state.juliaIm);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  updateFps();
+}
+
+// ==================== 几何分形渲染 ====================
+function getColors() { return geoColorSchemes[state.geoColor]; }
+
+// 科赫雪花
+function drawKoch(depth) {
+  ctx.clearRect(0, 0, W, H);
+  const size = Math.min(W, H) * 0.7;
+  const cx = W / 2, cy = H / 2;
+  const h = size * Math.sqrt(3) / 3;
+
+  const p1 = { x: cx - size/2, y: cy + h/2 };
+  const p2 = { x: cx + size/2, y: cy + h/2 };
+  const p3 = { x: cx, y: cy - h };
+
+  function kochPoints(ax, ay, bx, by, d) {
+    if (d === 0) return [{ x: ax, y: ay }];
+    const dx = (bx-ax)/3, dy = (by-ay)/3;
+    const x1 = ax+dx, y1 = ay+dy;
+    const x2 = ax+2*dx, y2 = ay+2*dy;
+    const mx = (ax+bx)/2 - (by-ay)*Math.sqrt(3)/6;
+    const my = (ay+by)/2 + (bx-ax)*Math.sqrt(3)/6;
+    return [
+      ...kochPoints(ax,ay, x1,y1, d-1),
+      ...kochPoints(x1,y1, mx,my, d-1),
+      ...kochPoints(mx,my, x2,y2, d-1),
+      ...kochPoints(x2,y2, bx,by, d-1),
+    ];
+  }
+
+  const pts = [
+    ...kochPoints(p1.x,p1.y, p2.x,p2.y, depth),
+    ...kochPoints(p2.x,p2.y, p3.x,p3.y, depth),
+    ...kochPoints(p3.x,p3.y, p1.x,p1.y, depth),
+    { x: p1.x, y: p1.y }
+  ];
+
+  const colors = getColors();
+  const grad = ctx.createLinearGradient(cx-size/2, cy-h, cx+size/2, cy+h/2);
+  grad.addColorStop(0, colors[0]); grad.addColorStop(0.5, colors[1]);
+  grad.addColorStop(1, colors[2]);
+
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = Math.max(0.5, 2 - depth * 0.2);
+  ctx.shadowColor = colors[0]; ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  updateFps();
+}
+
+// 谢尔宾斯基三角形
+function drawSierpinski(depth) {
+  ctx.clearRect(0, 0, W, H);
+  const size = Math.min(W, H) * 0.8;
+  const cx = W/2, bot = H/2 + size*Math.sqrt(3)/4;
+  const colors = getColors();
+
+  function tri(ax,ay, bx,by, ccx,cy, d) {
+    if (d === 0) {
+      ctx.beginPath();
+      ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.lineTo(ccx,cy); ctx.closePath();
+      const t = d / Math.max(1, depth);
+      const ci = Math.floor((1 - ay/H) * (colors.length-1));
+      ctx.fillStyle = colors[Math.min(ci, colors.length-1)];
+      ctx.fill();
+      return;
+    }
+    const mx1 = (ax+bx)/2, my1 = (ay+by)/2;
+    const mx2 = (bx+ccx)/2, my2 = (by+cy)/2;
+    const mx3 = (ax+ccx)/2, my3 = (ay+cy)/2;
+    tri(ax,ay, mx1,my1, mx3,my3, d-1);
+    tri(mx1,my1, bx,by, mx2,my2, d-1);
+    tri(mx3,my3, mx2,my2, ccx,cy, d-1);
+  }
+
+  const ax = cx - size/2, ay = bot;
+  const bx = cx + size/2, by = bot;
+  const ccx = cx, ccy = bot - size*Math.sqrt(3)/2;
+  tri(ax,ay, bx,by, ccx,ccy, depth);
+  updateFps();
+}
+
+// 分形树
+function drawTree(depth) {
+  ctx.clearRect(0, 0, W, H);
+  const colors = getColors();
+  const baseLen = Math.min(W, H) * 0.25;
+
+  function branch(x, y, len, angle, d) {
+    if (d === 0 || len < 1) return;
+    const ex = x + Math.cos(angle) * len;
+    const ey = y + Math.sin(angle) * len;
+    const t = 1 - d / depth;
+    const ci = Math.min(Math.floor(t * colors.length), colors.length - 1);
+    ctx.strokeStyle = colors[ci];
+    ctx.lineWidth = Math.max(0.5, d * 1.5);
+    ctx.globalAlpha = 0.6 + 0.4 * (d / depth);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
+
+    const shrink = 0.68 + Math.random() * 0.05;
+    const spread = 0.4 + Math.random() * 0.15;
+    branch(ex, ey, len * shrink, angle - spread, d - 1);
+    branch(ex, ey, len * shrink, angle + spread, d - 1);
+    if (d > 3) branch(ex, ey, len * shrink * 0.7, angle + (Math.random()-0.5)*0.3, d - 2);
+  }
+
+  ctx.globalAlpha = 1;
+  branch(W/2, H * 0.85, baseLen, -Math.PI/2, depth);
+  ctx.globalAlpha = 1;
+  updateFps();
+}
+
+// 龙形曲线
+function drawDragon(depth) {
+  ctx.clearRect(0, 0, W, H);
+  // 生成龙曲线方向序列
+  let turns = [];
+  for (let i = 0; i < depth; i++) {
+    const copy = [...turns].reverse().map(t => 1 - t);
+    turns = [...turns, 1, ...copy];
+  }
+
+  // 计算所有点
+  let x = 0, y = 0, dx = 1, dy = 0;
+  const pts = [{ x, y }];
+  for (const t of turns) {
+    if (t === 1) { const tmp = dx; dx = -dy; dy = tmp; }
+    else { const tmp = dy; dy = -dx; dx = tmp; }
+    x += dx; y += dy;
+    pts.push({ x, y });
+  }
+
+  // 归一化到画布
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of pts) {
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+  }
+  const pw = maxX - minX || 1, ph = maxY - minY || 1;
+  const sc = Math.min(W, H) * 0.8 / Math.max(pw, ph);
+  const ox = (W - pw*sc)/2 - minX*sc;
+  const oy = (H - ph*sc)/2 - minY*sc;
+
+  const colors = getColors();
+  const total = pts.length;
+  ctx.lineWidth = Math.max(0.5, 3 - depth * 0.15);
+  ctx.lineCap = 'round';
+
+  // 分段着色
+  const segSize = Math.max(1, Math.floor(total / 120));
+  for (let i = 0; i < total - 1; i += segSize) {
+    const end = Math.min(i + segSize + 1, total);
+    const t = i / total;
+    const ci = Math.floor(t * (colors.length - 1));
+    ctx.strokeStyle = colors[ci];
+    ctx.beginPath();
+    ctx.moveTo(pts[i].x * sc + ox, pts[i].y * sc + oy);
+    for (let j = i + 1; j < end; j++) {
+      ctx.lineTo(pts[j].x * sc + ox, pts[j].y * sc + oy);
+    }
+    ctx.stroke();
+  }
+  updateFps();
+}
+
+function renderGeo() {
+  const d = state.depth;
+  switch (currentFractal) {
+    case 'koch': drawKoch(Math.min(d, 7)); break;
+    case 'sierpinski': drawSierpinski(Math.min(d, 10)); break;
+    case 'tree': drawTree(Math.min(d, 12)); break;
+    case 'dragon': drawDragon(Math.min(d, 18)); break;
+  }
+}
+
+// ==================== 模式切换 ====================
+function switchMode(fractal) {
+  currentFractal = fractal;
+  const isGeo = geoTypes.includes(fractal);
+  mode = isGeo ? 'geo' : 'gl';
+
+  canvasGL.style.display = isGeo ? 'none' : 'block';
+  canvas2d.style.display = isGeo ? 'block' : 'none';
+  canvas2d.style.pointerEvents = isGeo ? 'auto' : 'none';
+  document.getElementById('glControls').classList.toggle('hidden', isGeo);
+  document.getElementById('geoControls').classList.toggle('hidden', !isGeo);
+
+  if (isGeo) {
+    document.getElementById('hintText').textContent = '拖动滑块调整递归深度';
+    stopGLAnim();
+    renderGeo();
+  } else {
+    document.getElementById('hintText').textContent = '🖱 滚轮缩放 · 拖拽平移 · 双击聚焦';
+    stopGeoAnim();
+    state.centerX = fractal === 'mandelbrot' ? -0.5 : 0;
+    state.centerY = 0; state.zoom = 1;
+    renderGL();
+  }
+  updateInfoPanel();
+}
+
+function updateInfoPanel() {
+  if (mode === 'gl') {
+    document.getElementById('zoomInfo').textContent = state.zoom >= 1000
+      ? state.zoom.toExponential(2)+'x' : state.zoom.toFixed(1)+'x';
+    document.getElementById('centerInfo').textContent =
+      `(${state.centerX.toFixed(8)}, ${state.centerY.toFixed(8)})`;
+  } else {
+    document.getElementById('zoomInfo').textContent = '—';
+    document.getElementById('centerInfo').textContent = `深度 ${state.depth}`;
+  }
+}
+
+// ==================== UI 事件 ====================
+// 分形类型按钮
+document.querySelectorAll('[data-fractal]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-fractal]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    switchMode(btn.dataset.fractal);
+  });
+});
+
+// 配色
+document.querySelectorAll('[data-palette]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-palette]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.palette = parseInt(btn.dataset.palette);
+    renderGL(); updateInfoPanel();
+  });
+});
+
+document.querySelectorAll('[data-geocolor]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-geocolor]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.geoColor = parseInt(btn.dataset.geocolor);
+    renderGeo();
+  });
+});
+
+// 迭代次数
+document.getElementById('iterSlider').addEventListener('input', e => {
+  state.maxIter = parseInt(e.target.value);
+  document.getElementById('iterLabel').textContent = state.maxIter;
+  renderGL(); updateInfoPanel();
+});
+
+// 递归深度
+document.getElementById('depthSlider').addEventListener('input', e => {
+  state.depth = parseInt(e.target.value);
+  document.getElementById('depthLabel').textContent = state.depth;
+  renderGeo(); updateInfoPanel();
+});
+
+// 重置
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (mode === 'gl') {
+    state.centerX = currentFractal === 'mandelbrot' ? -0.5 : 0;
+    state.centerY = 0; state.zoom = 1;
+    stopGLAnim(); renderGL();
+  } else {
+    state.depth = 5;
+    document.getElementById('depthSlider').value = 5;
+    document.getElementById('depthLabel').textContent = 5;
+    stopGeoAnim(); renderGeo();
+  }
+  updateInfoPanel();
+});
+
+// ==================== WebGL 交互 ====================
+let isDrag = false, dsx, dsy, dcx, dcy;
+canvasGL.addEventListener('mousedown', e => {
+  isDrag = true; dsx = e.clientX; dsy = e.clientY;
+  dcx = state.centerX; dcy = state.centerY;
+  canvasGL.style.cursor = 'grabbing';
+});
+canvasGL.addEventListener('mousemove', e => {
+  if (!isDrag) return;
+  const s = 3.5 / (state.zoom * Math.min(W,H));
+  state.centerX = dcx - (e.clientX-dsx)*s;
+  state.centerY = dcy + (e.clientY-dsy)*s;
+  renderGL(); updateInfoPanel();
+});
+canvasGL.addEventListener('mouseup', () => { isDrag = false; canvasGL.style.cursor = 'crosshair'; });
+canvasGL.addEventListener('mouseleave', () => { isDrag = false; canvasGL.style.cursor = 'crosshair'; });
+
+canvasGL.addEventListener('wheel', e => {
+  e.preventDefault();
+  const s = 3.5/(state.zoom*Math.min(W,H));
+  const mx = state.centerX + (e.clientX-W/2)*s;
+  const my = state.centerY - (e.clientY-H/2)*s;
+  state.zoom *= e.deltaY < 0 ? 1.4 : 1/1.4;
+  const ns = 3.5/(state.zoom*Math.min(W,H));
+  state.centerX = mx - (e.clientX-W/2)*ns;
+  state.centerY = my + (e.clientY-H/2)*ns;
+  renderGL(); updateInfoPanel();
+}, { passive: false });
+
+canvasGL.addEventListener('dblclick', e => {
+  const s = 3.5/(state.zoom*Math.min(W,H));
+  state.centerX += (e.clientX-W/2)*s;
+  state.centerY -= (e.clientY-H/2)*s;
+  state.zoom *= 3;
+  renderGL(); updateInfoPanel();
+});
+
+// ==================== WebGL 动画 ====================
+let glAnim = false, glFrame = null;
+const targets = [
+  {x:-0.7435669,y:0.1314023},{x:-0.16,y:1.0405},{x:-1.25066,y:0.02012},
+  {x:-0.745428,y:0.113009},{x:0.001643721971153,y:-0.822467633298876},
+];
+let tIdx = 0;
+
+function stopGLAnim() {
+  glAnim = false; if (glFrame) cancelAnimationFrame(glFrame);
+  document.getElementById('animateBtn').textContent = '▶ 自动缩放动画';
+}
+
+document.getElementById('animateBtn').addEventListener('click', () => {
+  if (glAnim) { stopGLAnim(); return; }
+  glAnim = true;
+  document.getElementById('animateBtn').textContent = '⏸ 停止动画';
+  const t = targets[tIdx]; tIdx = (tIdx+1)%targets.length;
+  state.centerX = t.x; state.centerY = t.y; state.zoom = 1;
+  function step() {
+    if (!glAnim) return;
+    state.zoom *= 1.015;
+    const di = Math.min(2048, 256+Math.floor(Math.log2(state.zoom)*40));
+    state.maxIter = di;
+    document.getElementById('iterSlider').value = di;
+    document.getElementById('iterLabel').textContent = di;
+    renderGL(); updateInfoPanel();
+    if (state.zoom > 1e13) {
+      const n = targets[tIdx]; tIdx = (tIdx+1)%targets.length;
+      state.centerX = n.x; state.centerY = n.y; state.zoom = 1;
+    }
+    glFrame = requestAnimationFrame(step);
+  }
+  step();
+});
+
+// ==================== 几何分形生长动画 ====================
+let geoAnim = false, geoFrame = null, geoAnimDepth = 0;
+
+function stopGeoAnim() {
+  geoAnim = false; if (geoFrame) cancelAnimationFrame(geoFrame);
+  document.getElementById('geoAnimBtn').textContent = '▶ 生长动画';
+}
+
+document.getElementById('geoAnimBtn').addEventListener('click', () => {
+  if (geoAnim) { stopGeoAnim(); return; }
+  geoAnim = true; geoAnimDepth = 0;
+  document.getElementById('geoAnimBtn').textContent = '⏸ 停止动画';
+
+  const maxD = currentFractal === 'dragon' ? 18
+             : currentFractal === 'tree' ? 12
+             : currentFractal === 'sierpinski' ? 10 : 7;
+  let lastTime = 0;
+
+  function step(time) {
+    if (!geoAnim) return;
+    if (time - lastTime > 600) {
+      lastTime = time;
+      geoAnimDepth++;
+      state.depth = geoAnimDepth;
+      document.getElementById('depthSlider').value = geoAnimDepth;
+      document.getElementById('depthLabel').textContent = geoAnimDepth;
+      renderGeo(); updateInfoPanel();
+      if (geoAnimDepth >= maxD) { geoAnimDepth = 0; }
+    }
+    geoFrame = requestAnimationFrame(step);
+  }
+  geoFrame = requestAnimationFrame(step);
+});
+
+// ==================== 键盘 ====================
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { stopGLAnim(); stopGeoAnim(); }
+  if (mode === 'gl') {
+    if (e.key === '+' || e.key === '=') { state.zoom *= 1.5; renderGL(); updateInfoPanel(); }
+    if (e.key === '-') { state.zoom /= 1.5; renderGL(); updateInfoPanel(); }
+  }
+});
+
+window.addEventListener('resize', () => {
+  resize();
+  if (mode === 'gl') renderGL(); else renderGeo();
+  updateInfoPanel();
+});
+
+// ==================== 初始渲染 ====================
+renderGL();
+updateInfoPanel();
+</script>
+</body>
+</html>
