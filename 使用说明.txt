@@ -3,8 +3,19 @@ learn-anew 讲解动画
 用浏览器打开本文件夹里的 index.html 即可，不需要安装开发工具。
 建议使用 Chrome、Edge 或 Safari。
 
-「物态变化 · 3D」需要联网，第一次打开会从网上加载三维图形库。
-平面版在 states-of-matter/index.html，在线页面不放这一页。
+首页卡片上的年级和科目，按人教版笼统标注，方便对着课本讲，不精确到某一课。
 
-这是方便分享的混淆版。可读的源码在仓库里：
+「物态变化 · 3D」需要联网，第一次打开会从网上加载用到的组件。
+这些页只在压缩包里，在线页面不放：
+states-of-matter/index.html（物态变化 · 2D）
+
+这是方便分享的混淆版。开场画面上的「首页」回到本文件夹，「GitHub」打开源码：
 https://github.com/luckinov/learn-anew
+
+在线页面：
+https://luckinov.github.io/learn-anew/
+
+协议：知识共享 署名-非商业性使用-相同方式共享 4.0（CC BY-NC-SA 4.0）。
+可以在课堂和学习中使用、修改并分享。请保留署名。不要用于商业用途。
+说明：https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh
+法律文本在同目录的 LICENSE。

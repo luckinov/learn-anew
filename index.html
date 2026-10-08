@@ -14,7 +14,7 @@
   }
   main { max-width: 720px; margin: 0 auto; }
   h1 { font-size: 32px; margin: 0 0 8px; }
-  .lead { margin: 0 0 28px; color: #b7c3de; line-height: 1.6; }
+  .lead { margin: 0 0 8px; color: #b7c3de; line-height: 1.6; }
   .cards { display: grid; gap: 12px; }
   a.card {
     display: block; padding: 18px 20px; border-radius: 14px; text-decoration: none; color: inherit;
@@ -22,21 +22,25 @@
   }
   a.card:hover { border-color: rgba(140,180,255,.45); }
   a.card strong { display: block; font-size: 18px; margin-bottom: 4px; }
-  a.card span { color: #9aabc8; font-size: 14px; line-height: 1.5; }
+  a.card em { display: block; margin-top: 6px; color: #9ec0ff; font-style: normal; font-size: 13px; }
+  a.card span { display: block; margin-top: 6px; color: #9aabc8; font-size: 14px; line-height: 1.5; }
+  .repo { margin: 0 0 28px; color: #9aabc8; font-size: 15px; line-height: 1.7; }
+  .repo a, footer a { color: #9ec0ff; }
   footer { margin-top: 28px; color: #8b98b3; font-size: 14px; line-height: 1.7; }
-  footer a { color: #9ec0ff; }
 </style>
 </head>
 <body>
 <main>
   <h1>讲解动画</h1>
-  <p class="lead">用浏览器打开就行，不用安装别的软件。点下面开始看三维演示。</p>
+  <p class="lead">用浏览器打开就行，不用安装别的软件。卡片上的年级和科目按人教版笼统标好，方便对着课本讲，不精确到某一课。</p>
+  <p class="repo">源码在 <a href="https://github.com/luckinov/learn-anew">GitHub</a>。仓库首页写着在线地址，从那边可以回到这里。</p>
   <div class="cards">
-<a class="card" href="states-of-matter/3d.html"><strong>物态变化 · 3D</strong><span>固液气物态变化，三维演示。第一次打开需要联网</span></a>
+<a class="card" href="states-of-matter/3d.html"><strong>物态变化 · 3D</strong><em>人教版 · 初中八年级 · 物理 · 物态变化</em><em>人教版 · 小学中年级 · 科学 · 水的三态 · 笼统</em><span>三维演示。第一次打开需要联网</span></a>
   </div>
   <footer>
-    <p>第一次打开需要联网，三维组件下载完就能看。</p>
-    <p>想保存到自己电脑：到 <a href="https://github.com/luckinov/learn-anew/releases/latest">下载页</a> 下载压缩包，解压后双击 <code>index.html</code>。平面版在压缩包的 <code>states-of-matter/index.html</code>，在线页面不放。</p>
+    <p>这些页面第一次打开需要联网：物态变化 · 3D。用到的组件下载完就能看。</p>
+    <p>想保存到自己电脑：到 <a href="https://github.com/luckinov/learn-anew/releases/latest">下载页</a> 下载压缩包，解压后双击 <code>index.html</code>。压缩包里还有：<code>states-of-matter/index.html</code>（物态变化 · 2D）。这些页不放在线。</p>
+    <p>协议：<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh">知识共享 署名-非商业性使用-相同方式共享 4.0</a>。课堂和学习可以用，请勿商用。</p>
   </footer>
 </main>
 </body>
