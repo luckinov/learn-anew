@@ -8,6 +8,9 @@ import { minify } from 'html-minifier-terser';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const outDir = join(root, 'release');
+const repoUrl = 'https://github.com/luckinov/learn-anew';
+const releaseUrl = `${repoUrl}/releases/latest`;
+const siteUrl = 'https://luckinov.github.io/learn-anew/';
 
 // 上线哪些页、对应哪本课本，都写在各动画目录的 meta.json 里。这里不再手写名单。
 
@@ -103,6 +106,38 @@ function restoreSpecialScripts(html, blocks) {
   return html.replace(/%%PROTECTED_SCRIPT_(\d+)%%/g, (_, i) => blocks[Number(i)]);
 }
 
+const repoLinkStyle = `<style>
+.learn-anew-links{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:0 0 18px;font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+.learn-anew-links a{color:#e7f0ff;background:rgba(8,12,28,.72);border:1px solid rgba(160,190,255,.45);border-radius:999px;padding:10px 16px;min-height:44px;box-sizing:border-box;display:inline-flex;align-items:center;font-size:15px;font-weight:600;text-decoration:none;touch-action:manipulation}
+#start .learn-anew-links{flex-shrink:0}
+html.light .learn-anew-links a{color:#102033;background:#fff;border-color:#1d4e89}
+body>.learn-anew-links{position:fixed;z-index:80;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);margin:0}
+</style>`;
+
+function repoNav(home) {
+  return `<nav class="learn-anew-links" aria-label="站点和源码"><a href="${home}">首页</a><a href="${repoUrl}" target="_blank" rel="noopener noreferrer">GitHub</a></nav>`;
+}
+
+function insertAfterStart(html, snippet) {
+  const open = /<div\s+id=["']start["'][^>]*>/i.exec(html);
+  if (!open) return null;
+  const at = open.index + open[0].length;
+  return html.slice(0, at) + snippet + html.slice(at);
+}
+
+function attachRepoLinks(html, rel) {
+  const depth = rel.split('/').length - 1;
+  const home = `${'../'.repeat(depth)}index.html`;
+  const nav = repoNav(home);
+  const withStyle = html.includes('</head>')
+    ? html.replace('</head>', `${repoLinkStyle}</head>`)
+    : `${repoLinkStyle}${html}`;
+  const withStart = insertAfterStart(withStyle, nav);
+  if (withStart) return withStart;
+  if (withStyle.includes('</body>')) return withStyle.replace('</body>', `${nav}</body>`);
+  return `${withStyle}${nav}`;
+}
+
 async function buildPage(rel) {
   const src = await readFile(join(root, rel), 'utf8');
   const obfuscated = obfuscateHtml(src);
@@ -113,7 +148,7 @@ async function buildPage(rel) {
     minifyCSS: true,
     minifyJS: false,
   });
-  const html = restoreSpecialScripts(minified, protectedHtml.blocks);
+  const html = attachRepoLinks(restoreSpecialScripts(minified, protectedHtml.blocks), rel);
   const dest = join(outDir, rel);
   await mkdir(dirname(dest), { recursive: true });
   await writeFile(dest, html);
@@ -281,8 +316,8 @@ function landingPage(onlinePages, downloadPages) {
     : '';
   const offline = downloadPages.map((page) => `<code>${page.href}</code>（${page.title}）`).join('、');
   const offlineLine = offline
-    ? `<p>想保存到自己电脑：到 <a href="https://github.com/luckinov/learn-anew/releases/latest">下载页</a> 下载压缩包，解压后双击 <code>index.html</code>。压缩包里还有：${offline}。这些页不放在线。</p>`
-    : `<p>想保存到自己电脑：到 <a href="https://github.com/luckinov/learn-anew/releases/latest">下载页</a> 下载压缩包，解压后双击 <code>index.html</code>。</p>`;
+    ? `<p>想保存到自己电脑：到 <a href="${releaseUrl}">下载页</a> 下载压缩包，解压后双击 <code>index.html</code>。压缩包里还有：${offline}。这些页不放在线。</p>`
+    : `<p>想保存到自己电脑：到 <a href="${releaseUrl}">下载页</a> 下载压缩包，解压后双击 <code>index.html</code>。</p>`;
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -299,7 +334,7 @@ function landingPage(onlinePages, downloadPages) {
   }
   main { max-width: 720px; margin: 0 auto; }
   h1 { font-size: 32px; margin: 0 0 8px; }
-  .lead { margin: 0 0 28px; color: #b7c3de; line-height: 1.6; }
+  .lead { margin: 0 0 8px; color: #b7c3de; line-height: 1.6; }
   .cards { display: grid; gap: 12px; }
   a.card {
     display: block; padding: 18px 20px; border-radius: 14px; text-decoration: none; color: inherit;
@@ -309,14 +344,16 @@ function landingPage(onlinePages, downloadPages) {
   a.card strong { display: block; font-size: 18px; margin-bottom: 4px; }
   a.card em { display: block; margin-top: 6px; color: #9ec0ff; font-style: normal; font-size: 13px; }
   a.card span { display: block; margin-top: 6px; color: #9aabc8; font-size: 14px; line-height: 1.5; }
+  .repo { margin: 0 0 28px; color: #9aabc8; font-size: 15px; line-height: 1.7; }
+  .repo a, footer a { color: #9ec0ff; }
   footer { margin-top: 28px; color: #8b98b3; font-size: 14px; line-height: 1.7; }
-  footer a { color: #9ec0ff; }
 </style>
 </head>
 <body>
 <main>
   <h1>讲解动画</h1>
   <p class="lead">用浏览器打开就行，不用安装别的软件。卡片上的年级和科目按人教版笼统标好，方便对着课本讲，不精确到某一课。</p>
+  <p class="repo">源码在 <a href="${repoUrl}">GitHub</a>。仓库首页写着在线地址，从那边可以回到这里。</p>
   <div class="cards">
 ${cards}
   </div>
@@ -344,8 +381,11 @@ function usageText(onlinePages, downloadPages) {
 首页卡片上的年级和科目，按人教版笼统标注，方便对着课本讲，不精确到某一课。
 
 ${netLine}${offlineLine}
-这是方便分享的混淆版。可读的源码在仓库里：
-https://github.com/luckinov/learn-anew
+这是方便分享的混淆版。开场画面上的「首页」回到本文件夹，「GitHub」打开源码：
+${repoUrl}
+
+在线页面：
+${siteUrl}
 
 协议：知识共享 署名-非商业性使用-相同方式共享 4.0（CC BY-NC-SA 4.0）。
 可以在课堂和学习中使用、修改并分享。请保留署名。不要用于商业用途。
@@ -448,13 +488,23 @@ for (const topic of topics) {
   }
 }
 
-await writeFile(join(outDir, 'index.html'), landingPage(onlinePages, downloadPages));
+const indexHtml = landingPage(onlinePages, downloadPages);
+if (!indexHtml.includes(`href="${repoUrl}"`)) {
+  throw new Error('首页没有链到 GitHub 仓库');
+}
+await writeFile(join(outDir, 'index.html'), indexHtml);
 await writeFile(join(outDir, '使用说明.txt'), usageText(onlinePages, downloadPages));
 await writeFile(join(outDir, 'catalog.json'), `${JSON.stringify(catalogJson(topics), null, 2)}\n`);
 await writeFile(join(outDir, '.nojekyll'), '');
 await cp(join(root, 'LICENSE'), join(outDir, 'LICENSE'));
 
-for (const [rel, html] of built) await checkSyntax(rel, html);
+for (const [rel, html] of built) {
+  const home = `${'../'.repeat(rel.split('/').length - 1)}index.html`;
+  if (!html.includes('class="learn-anew-links"') || !html.includes(`href="${home}"`) || !html.includes(`href="${repoUrl}"`)) {
+    throw new Error(`${rel} 没有链回首页和 GitHub`);
+  }
+  await checkSyntax(rel, html);
+}
 
 for (const [rel, html] of built) {
   const source = sources.get(rel);

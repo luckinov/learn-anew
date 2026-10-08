@@ -4,10 +4,12 @@
 
 ## 直接看、直接下载
 
-不用装开发工具。
+不用装开发工具。在线页面和这个仓库互相留了入口。
 
 - 在线看：<https://luckinov.github.io/learn-anew/>
 - 下载到电脑：打开 [Releases](https://github.com/luckinov/learn-anew/releases/latest)，下载 `learn-anew-obfuscated.zip`，解压后用浏览器打开里面的 `index.html`
+
+在线首页写着本仓库的地址。每个动画的开场画面也有「首页」和「GitHub」。
 
 「物态变化 · 3D」第一次打开需要联网。讲解语音已经打在压缩包里，解压后可以离线听。
 
