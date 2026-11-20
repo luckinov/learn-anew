@@ -1,0 +1,2107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script>if (new URLSearchParams(location.search).has('light')) document.documentElement.classList.add('light');</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070b18">
+<title>水的相图 · 温度与气压的物态变化</title>
+<style>
+  :root{
+    --bg:#070b18;
+    --bg2:#0e1529;
+    --card:#121b33;
+    --card2:#172240;
+    --border:rgba(140,180,255,.16);
+    --border-hi:rgba(110,200,255,.5);
+    --text:#eaf1ff;
+    --muted:#9fb1d1;
+    --dim:#6f82a6;
+    --ice:#38bdf8;
+    --liq:#3b82f6;
+    --gas:#f59e0b;
+    --scf:#c084fc;
+    --hot:#fb7185;
+    --cool:#22d3ee;
+    --ok:#34d399;
+    --shadow:0 12px 32px rgba(0,0,0,.4);
+    --radius:16px;
+  }
+  html.light{
+    --bg:#f2f5fa;
+    --bg2:#e7edf6;
+    --card:#ffffff;
+    --card2:#f6f9fe;
+    --border:rgba(20,40,80,.14);
+    --border-hi:#1d4e89;
+    --text:#132033;
+    --muted:#475a75;
+    --dim:#6b7d96;
+    --ice:#0284c7;
+    --liq:#1d4ed8;
+    --gas:#c2410c;
+    --scf:#7e22ce;
+    --hot:#be123c;
+    --cool:#0e7490;
+    --ok:#047857;
+    --shadow:0 8px 24px rgba(15,35,70,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{
+    margin:0;min-height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+
+  /* 顶部栏 */
+  header{
+    position:sticky;top:0;z-index:30;
+    background:color-mix(in srgb,var(--bg) 88%,transparent);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--border);
+  }
+  .head-in{
+    max-width:1360px;margin:0 auto;padding:12px 18px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  }
+  .brand{display:flex;flex-direction:column;gap:2px}
+  .brand h1{margin:0;font-size:21px;font-weight:800;letter-spacing:.03em;display:flex;align-items:center;gap:8px}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--ice),var(--scf));box-shadow:0 0 12px var(--ice)}
+  .brand p{margin:0;font-size:13px;color:var(--muted)}
+  .head-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .tab{
+    min-height:44px;padding:8px 16px;border-radius:12px;
+    border:1px solid var(--border);background:var(--card);color:var(--muted);
+    font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;
+    transition:.18s;touch-action:manipulation;
+  }
+  .tab:hover{border-color:var(--border-hi);color:var(--text)}
+  .tab.on{
+    background:linear-gradient(135deg,rgba(56,189,248,.22),rgba(192,132,252,.22));
+    border-color:var(--ice);color:var(--text);
+    box-shadow:0 0 18px rgba(56,189,248,.18);
+  }
+  html.light .tab.on{background:#dbeafe;border-color:#1d4e89;color:#0f2744;box-shadow:none}
+
+  .theme-btn{
+    min-height:44px;padding:8px 14px;border-radius:12px;
+    border:1px solid var(--border);background:transparent;color:var(--muted);
+    font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;touch-action:manipulation;
+  }
+  .theme-btn:hover{border-color:var(--border-hi);color:var(--text)}
+
+  /* 主体 */
+  main{max-width:1360px;margin:0 auto;padding:18px 18px 88px}
+  .view{display:none}
+  .view.on{display:block}
+
+  /* 卡片与栅格 */
+  .grid-main{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(320px,1fr);gap:16px;align-items:start}
+  .card{
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px;box-shadow:var(--shadow);
+  }
+  .card-head{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    margin-bottom:10px;flex-wrap:wrap;
+  }
+  .card-title{font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .card-sub{font-size:13px;color:var(--muted)}
+
+  /* 相图画布容器 */
+  .chart-wrap{
+    position:relative;width:100%;aspect-ratio:16/11;min-height:320px;
+    border-radius:12px;overflow:hidden;background:var(--bg2);
+    border:1px solid var(--border);
+  }
+  canvas.fill{display:block;width:100%;height:100%;touch-action:none}
+  #pdCanvas{cursor:crosshair}
+
+  /* 工具切换行 */
+  .toggles{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+  .chip-btn{
+    min-height:38px;padding:6px 12px;border-radius:10px;
+    border:1px solid var(--border);background:var(--card2);color:var(--muted);
+    font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;
+    transition:.15s;touch-action:manipulation;
+  }
+  .chip-btn:hover{border-color:var(--border-hi);color:var(--text)}
+  .chip-btn.on{border-color:var(--ice);background:rgba(56,189,248,.16);color:var(--text)}
+  html.light .chip-btn.on{background:#dbeafe;border-color:#1d4e89;color:#0f2744}
+
+  /* 滑块区 */
+  .sliders{
+    display:grid;grid-template-columns:1fr 1fr;gap:14px;
+    margin-top:14px;padding-top:14px;border-top:1px solid var(--border);
+  }
+  .sl-box{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+  .sl-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+  .sl-label{font-size:14px;font-weight:700}
+  .sl-val{font-size:17px;font-weight:800;color:var(--ice)}
+  .sl-sub{font-size:12px;color:var(--muted);margin-top:4px;min-height:18px}
+  input[type=range]{
+    width:100%;height:8px;accent-color:var(--ice);cursor:pointer;
+  }
+
+  /* 快捷演示路径按钮 */
+  .paths{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .path-btn{
+    min-height:42px;padding:8px 13px;border-radius:11px;
+    border:1px solid var(--border);background:var(--card2);color:var(--text);
+    font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;
+    transition:.16s;touch-action:manipulation;display:inline-flex;align-items:center;gap:6px;
+  }
+  .path-btn:hover{border-color:var(--border-hi);transform:translateY(-1px)}
+  .path-btn.playing{border-color:var(--gas);background:rgba(245,158,11,.18)}
+
+  /* 右侧活塞室 + 读数 */
+  .side-stack{display:flex;flex-direction:column;gap:14px}
+  .piston-wrap{
+    position:relative;width:100%;height:260px;border-radius:12px;
+    overflow:hidden;background:var(--bg2);border:1px solid var(--border);
+  }
+  .state-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .phase-badge{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:7px 15px;border-radius:999px;font-size:18px;font-weight:900;
+    border:1.5px solid currentColor;background:rgba(56,189,248,.12);
+  }
+  .phase-dot{width:9px;height:9px;border-radius:50%;background:currentColor}
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+  .metric{
+    background:var(--card2);border:1px solid var(--border);border-radius:10px;
+    padding:9px 11px;
+  }
+  .metric .mk{font-size:12px;color:var(--muted)}
+  .metric .mv{font-size:16px;font-weight:800;margin-top:3px}
+  .explain-box{
+    background:linear-gradient(135deg,rgba(56,189,248,.09),rgba(192,132,252,.07));
+    border:1px solid var(--border);border-left:4px solid var(--ice);
+    border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.7;
+  }
+  .explain-box strong{color:var(--text)}
+  .explain-box p{margin:0}
+  .explain-box p+p{margin-top:6px;color:var(--muted);font-size:13px}
+
+  /* 场景卡片区（生活应用模式） */
+  .scene-grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+    gap:10px;margin-top:14px;
+  }
+  .scene-card{
+    text-align:left;padding:14px 15px;border-radius:14px;
+    border:1px solid var(--border);background:var(--card2);color:var(--text);
+    cursor:pointer;font-family:inherit;transition:.16s;touch-action:manipulation;
+    display:flex;flex-direction:column;gap:6px;
+  }
+  .scene-card:hover{border-color:var(--border-hi);transform:translateY(-2px)}
+  .scene-card.on{
+    border-color:var(--ice);
+    background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(59,130,246,.12));
+  }
+  html.light .scene-card.on{background:#e0f2fe;border-color:#0284c7}
+  .scene-tag{
+    display:inline-block;align-self:flex-start;font-size:11px;font-weight:700;
+    padding:2px 8px;border-radius:999px;background:rgba(140,180,255,.15);color:var(--ice);
+  }
+  .scene-card h3{margin:0;font-size:16px;font-weight:800}
+  .scene-card p{margin:0;font-size:13px;color:var(--muted);line-height:1.5}
+  .scene-detail{
+    margin-top:14px;padding:16px 18px;border-radius:14px;
+    background:var(--card);border:1px solid var(--border);
+    display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
+  }
+  .sd-col h4{margin:0 0 6px;font-size:13px;color:var(--ice);letter-spacing:.04em}
+  .sd-col p{margin:0;font-size:14px;line-height:1.68;color:var(--text)}
+
+  /* 空调与热泵页 */
+  .hp-banner{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    margin-bottom:14px;padding:14px 16px;border-radius:var(--radius);
+    background:var(--card);border:1px solid var(--border);
+  }
+  .hp-mode-group{display:flex;gap:8px;flex-wrap:wrap}
+  .hp-mode-btn{
+    min-height:44px;padding:9px 18px;border-radius:12px;
+    border:1.5px solid var(--border);background:var(--card2);color:var(--muted);
+    font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;touch-action:manipulation;
+  }
+  .hp-mode-btn.cool.on{border-color:var(--cool);background:rgba(34,211,238,.18);color:var(--text)}
+  .hp-mode-btn.heat.on{border-color:var(--hot);background:rgba(251,113,133,.18);color:var(--text)}
+  .hp-grid{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;align-items:start}
+  .hp-canvas-wrap{
+    width:100%;aspect-ratio:16/10;min-height:300px;
+    border-radius:12px;overflow:hidden;background:var(--bg2);border:1px solid var(--border);
+  }
+  .hp-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+  .step-btn{
+    min-height:54px;padding:8px 10px;border-radius:12px;text-align:left;
+    border:1px solid var(--border);background:var(--card2);color:var(--text);
+    cursor:pointer;font-family:inherit;transition:.15s;touch-action:manipulation;
+  }
+  .step-btn b{display:block;font-size:14px}
+  .step-btn span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+  .step-btn.on{border-color:var(--gas);background:rgba(245,158,11,.16)}
+  .cop-box{
+    margin-top:14px;padding:16px 18px;border-radius:14px;
+    background:var(--card);border:1px solid var(--border);
+  }
+  .cop-bars{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
+  .cop-item{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+  .cop-item h4{margin:0 0 8px;font-size:15px}
+  .bar-stack{display:flex;height:28px;border-radius:8px;overflow:hidden;font-size:12px;font-weight:800;margin-bottom:8px}
+  .bar-elec{background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center}
+  .bar-env{background:#10b981;color:#052e16;display:flex;align-items:center;justify-content:center}
+  .bar-res{background:#f97316;color:#fff;display:flex;align-items:center;justify-content:center}
+  .cop-note{font-size:13px;color:var(--muted);line-height:1.6;margin:0}
+
+  /* 延伸与专业页 */
+  .edu-section{margin-bottom:18px}
+  .edu-section h2{margin:0 0 10px;font-size:19px;font-weight:900}
+  .edu-lead{margin:0 0 14px;font-size:14px;color:var(--muted);line-height:1.7}
+  .bridge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
+  .bridge-card{
+    background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;
+  }
+  .bridge-card .tag{font-size:12px;font-weight:800;color:var(--ice);margin-bottom:6px}
+  .bridge-card h3{margin:0 0 8px;font-size:16px}
+  .bridge-card p{margin:0;font-size:14px;color:var(--muted);line-height:1.68}
+  .major-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px}
+  .major-card{
+    background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .major-card h3{margin:0;font-size:16px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .major-badge{font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(56,189,248,.16);color:var(--ice);font-weight:700;white-space:nowrap;flex-shrink:0}
+  .major-card p{margin:0;font-size:14px;color:var(--muted);line-height:1.65}
+  .major-card .ex{font-size:13px;color:var(--text);background:var(--card2);padding:8px 10px;border-radius:9px;border:1px solid var(--border)}
+
+  /* 响应式适配手机与平板 */
+  @media (max-width:960px){
+    .grid-main,.hp-grid{grid-template-columns:1fr}
+    .scene-detail{grid-template-columns:1fr}
+    .cop-bars{grid-template-columns:1fr}
+  }
+  @media (max-width:640px){
+    main{padding:10px 10px 84px}
+    .head-in{padding:8px 12px;gap:8px}
+    .brand h1{font-size:17px}
+    .brand p{font-size:12px}
+    .head-right{width:100%;justify-content:space-between;gap:6px}
+    .tabs{gap:5px;flex:1}
+    .tab{min-height:38px;padding:6px 10px;font-size:13px;border-radius:10px}
+    .theme-btn{min-height:38px;padding:6px 10px;font-size:12px;border-radius:10px}
+    .sliders{grid-template-columns:1fr}
+    .hp-steps{grid-template-columns:1fr 1fr}
+    .chart-wrap{aspect-ratio:4/3;min-height:280px}
+    .piston-wrap{height:220px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="head-in">
+    <div class="brand">
+      <h1><span class="dot"></span>水的相图 · 温度与气压</h1>
+      <p>拖动温度和气压，看清为什么沸点会变、高压锅怎么加速、空调和热泵如何搬运热量</p>
+    </div>
+    <div class="head-right">
+      <div class="tabs" role="tablist" aria-label="功能切换">
+        <button class="tab on" data-tab="explore" role="tab" aria-selected="true">互动相图</button>
+        <button class="tab" data-tab="scenes" role="tab" aria-selected="false">生活场景</button>
+        <button class="tab" data-tab="heatpump" role="tab" aria-selected="false">空调与热泵</button>
+        <button class="tab" data-tab="majors" role="tab" aria-selected="false">延伸与专业</button>
+      </div>
+      <button class="theme-btn" id="btnTheme" type="button">浅色投影</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- 视图 1 & 2 共用相图与活塞区，切到“生活场景”时先展示场景选择器与解析，再联动下方相图和活塞 -->
+  <section id="view-explore" class="view on">
+    <div id="scenesTop" style="display:none;margin-bottom:14px">
+      <div class="scene-grid" id="sceneGrid" style="margin-top:0"></div>
+      <div class="scene-detail" id="sceneDetail">
+        <div class="sd-col"><h4>发生了什么</h4><p id="sdWhat"></p></div>
+        <div class="sd-col"><h4>在相图上怎么走</h4><p id="sdMap"></p></div>
+        <div class="sd-col"><h4>进阶思考 / 辟谣</h4><p id="sdNote"></p></div>
+      </div>
+    </div>
+
+    <div class="grid-main">
+      <!-- 左侧：互动水的相图 -->
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">水的 P–T 相图（温度 × 气压）</div>
+            <div class="card-sub">直接在图上拖动圆点，或用下方滑块调节；纵轴气压每格 ×10（对数坐标）</div>
+          </div>
+          <div class="toggles" style="margin:0">
+            <button class="chip-btn on" id="tog1atm" type="button">1 atm 日常线</button>
+            <button class="chip-btn" id="togNormal" type="button">对比普通物质熔化线</button>
+            <button class="chip-btn" id="btnClearTrail" type="button">清除轨迹</button>
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="pdCanvas" class="fill" aria-label="水的温度气压相图，可拖动状态点"></canvas>
+        </div>
+
+        <div class="sliders">
+          <div class="sl-box">
+            <div class="sl-top">
+              <span class="sl-label">温度 T</span>
+              <span class="sl-val mono" id="valT">25.0 °C</span>
+            </div>
+            <input type="range" id="slT" min="0" max="1000" value="310" aria-label="温度滑块">
+            <div class="sl-sub" id="subT">约 298.2 K · 室温</div>
+          </div>
+          <div class="sl-box">
+            <div class="sl-top">
+              <span class="sl-label">气压 P</span>
+              <span class="sl-val mono" id="valP">1.00 atm</span>
+            </div>
+            <input type="range" id="slP" min="0" max="1000" value="521" aria-label="气压滑块">
+            <div class="sl-sub" id="subP">101.3 kPa · 海平面标准大气压</div>
+          </div>
+        </div>
+
+        <div id="explorePaths">
+          <div style="font-size:13px;color:var(--muted);margin-top:12px;font-weight:700">点一条路线自动演示：</div>
+          <div class="paths">
+            <button class="path-btn" data-path="1atm" type="button">▶ 沿 1 atm 升温（常规加热）</button>
+            <button class="path-btn" data-path="vacuum" type="button">▶ 25°C 抽真空沸腾</button>
+            <button class="path-btn" data-path="compress" type="button">▶ 110°C 加压液化</button>
+            <button class="path-btn" data-path="sublimate" type="button">▶ 低压升华（冻干路线）</button>
+            <button class="path-btn" data-path="supercrit" type="button">▶ 绕过临界点（不沸腾变气）</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧：实时微观活塞容器 + 人话解读 -->
+      <div class="side-stack">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">微观活塞容器</div>
+            <div class="card-sub">顶部箭头 = 外部气压（盖子重量）</div>
+          </div>
+          <div class="piston-wrap">
+            <canvas id="pistonCanvas" class="fill" aria-label="水分子在当前温度与气压下的微观状态"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="state-row">
+            <div class="phase-badge" id="phaseBadge"><span class="phase-dot"></span><span id="phaseName">液态 · 水</span></div>
+            <div class="mono" style="font-size:12px;color:var(--muted)" id="phaseEn">LIQUID</div>
+          </div>
+          <div class="metrics">
+            <div class="metric">
+              <div class="mk">当前气压下的沸点</div>
+              <div class="mv mono" id="mBoil">100.0 °C</div>
+            </div>
+            <div class="metric">
+              <div class="mk">当前气压下的熔点</div>
+              <div class="mv mono" id="mMelt">0.0 °C</div>
+            </div>
+          </div>
+          <div class="explain-box" id="explainBox">
+            <p id="expMain"><strong>1 个标准大气压下，0°C 融化、100°C 沸腾。</strong>这就是平时最熟悉的水。</p>
+            <p id="expTip">把气压往下拉试试：液面上的“盖子”变轻，水不用到 100°C 就能沸腾！</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 视图 3：空调、压缩机与热泵 -->
+  <section id="view-heatpump" class="view">
+    <div class="hp-banner">
+      <div>
+        <div style="font-size:18px;font-weight:900">压缩机、空调与热泵：用“气压开关”搬运热量</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:3px">核心秘密就两句：加压抬高液化点 → 逼它放热液化；减压拉低沸点 → 让它吸热汽化。</div>
+      </div>
+      <div class="hp-mode-group">
+        <button class="hp-mode-btn cool on" id="hpCool" type="button">❄ 夏天制冷（空调模式）</button>
+        <button class="hp-mode-btn heat" id="hpHeat" type="button">☀ 冬天制热（热泵模式）</button>
+        <button class="chip-btn on" id="hpPlay" type="button" style="min-height:44px">暂停动画</button>
+      </div>
+    </div>
+
+    <div class="hp-grid">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title" id="hpDiagramTitle">制冷循环工作图（热量从室内搬到室外）</div>
+          <div class="card-sub">点下面 4 个部件可以单步看懂</div>
+        </div>
+        <div class="hp-canvas-wrap">
+          <canvas id="hpMachine" class="fill" aria-label="空调与热泵四部件循环动画"></canvas>
+        </div>
+        <div class="hp-steps" id="hpSteps">
+          <button class="step-btn on" data-step="0" type="button"><b>① 压缩机</b><span>加压升温</span></button>
+          <button class="step-btn" data-step="1" type="button"><b>② 冷凝器</b><span>高压液化 · 放热</span></button>
+          <button class="step-btn" data-step="2" type="button"><b>③ 膨胀阀</b><span>骤然减压降温</span></button>
+          <button class="step-btn" data-step="3" type="button"><b>④ 蒸发器</b><span>低压汽化 · 吸热</span></button>
+        </div>
+      </div>
+
+      <div class="side-stack">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">同一个循环在 P–T 相图上的样子</div>
+            <div class="card-sub">示意制冷剂（如 R32，沸点远低于水）</div>
+          </div>
+          <div class="hp-canvas-wrap" style="aspect-ratio:16/11;min-height:240px">
+            <canvas id="hpChart" class="fill" aria-label="制冷循环在气压温度相图上的闭环"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="explain-box" id="hpExplain">
+            <p id="hpExpTitle"><strong>① 压缩机：把气体狠狠压扁</strong></p>
+            <p id="hpExpBody"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cop-box">
+      <div style="font-size:16px;font-weight:800">为什么说“空调和热泵本质上是同一台机器”，而且热泵比电暖气省电 3 倍？</div>
+      <div class="cop-bars">
+        <div class="cop-item">
+          <h4>普通电暖气（电热丝直接发热）</h4>
+          <div class="bar-stack">
+            <div class="bar-elec" style="width:28%">1 份电</div>
+            <div style="flex:1;display:flex;align-items:center;padding-left:10px;color:var(--muted);font-weight:600">→ 最多变成 1 份热（100%）</div>
+          </div>
+          <p class="cop-note">只能老老实实把电能转化为热能，用 1 度电最多得 1 度电的热。</p>
+        </div>
+        <div class="cop-item">
+          <h4>热泵 / 空调制热（用压力差“搬运”室外热量）</h4>
+          <div class="bar-stack">
+            <div class="bar-elec" style="width:28%">1 份电</div>
+            <div class="bar-env" style="width:72%">+ 2.5 份室外搬来的免费热 = 3.5 份热！</div>
+          </div>
+          <p class="cop-note">电能不是用来“造热”，而是驱动压缩机维持高/低压差，把冷空气里的热搬进屋。这不违反能量守恒，只是做了热量的搬运工！</p>
+        </div>
+      </div>
+      <p class="cop-note" style="margin-top:10px">
+        <strong style="color:var(--text)">顺便回答：为什么空调里不装水当制冷剂？</strong>
+        水在 0°C 会结冰冻裂管子，且低温下水蒸气气压极低、体积巨大，压缩机得做成房子那么大。所以空调改用 R32、R410A 或 CO₂ 等低沸点制冷剂——但<strong>利用气压改沸点、靠液化放热与汽化吸热</strong>的原理，跟水的相图一模一样！
+      </p>
+    </div>
+  </section>
+
+  <!-- 视图 4：从高中热力学到大学专业 -->
+  <section id="view-majors" class="view">
+    <div class="edu-section">
+      <h2>如果你只记得一点热力学直觉，怎么把“相图”串起来？</h2>
+      <p class="edu-lead">不用背复杂公式，用三个画面就能打通：温度是分子的“折腾劲”，气压是压在上面的“盖子”，相变是两股力量的拔河。</p>
+      <div class="bridge-grid">
+        <div class="bridge-card">
+          <div class="tag">直觉 01 · 为什么从一条线变成一张图？</div>
+          <h3>1 atm 只是相图上的“一条横切线”</h3>
+          <p>平时说“水 0°C 结冰、100°C 沸腾”，其实藏着一个默认前提：<strong>气压 = 1 个标准大气压</strong>。把气压当成纵轴画出来，才看到全貌——换个气压，沸点可以低到 25°C，也能高到 200°C。</p>
+        </div>
+        <div class="bridge-card">
+          <div class="tag">直觉 02 · 为什么冰反常、熔化线左倾？</div>
+          <h3>水结冰变“蓬松”，一压反而更容易化</h3>
+          <p>大多数物质固态比液态更紧实，加压更利于变固态（熔化线向右斜）。水因为氢键搭出镂空六角晶格，冰比水轻 9%（所以冰浮在水上），高压会把镂空骨架压塌成更紧实的液态水，所以熔化线向左斜。</p>
+        </div>
+        <div class="bridge-card">
+          <div class="tag">直觉 03 · 临界点之后发生了什么？</div>
+          <h3>液体变稀、气体变挤，直到分不清彼此</h3>
+          <p>升温让液体膨胀变稀，加压让气体被挤密。到了 374°C、218 atm，液态水和高压水蒸气密度完全一样，液面彻底消失，进入<strong>超临界流体</strong>。你可以从液态绕过临界点变成气态，全程不冒一个泡！</p>
+        </div>
+        <div class="bridge-card">
+          <div class="tag">直觉 04 · 冰箱、空调、热泵的统一本质</div>
+          <h3>靠压缩机改压力，人为制造“低温沸腾、高温液化”</h3>
+          <p>热量自然只会从高温流向低温。要逆着搬运热量，就让工质在<strong>低压侧沸点低于冷源</strong>（于是能吸热汽化），再被压缩机<strong>加压到液化点高于热源</strong>（于是能放热液化）。冰箱、空调、热泵全都是同一套把戏。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="edu-section">
+      <h2>哪些大学专业会系统学习这些知识？</h2>
+      <p class="edu-lead">相图与热力循环是理工科的“通用语言”，不同专业侧重点不同：</p>
+      <div class="major-grid">
+        <div class="major-card">
+          <h3>能源与动力工程（能动）/ 暖通空调 <span class="major-badge">最对口空调热泵</span></h3>
+          <p>核心课程是《工程热力学》《传热学》《制冷原理》。天天跟水蒸气相图、温熵图（T-s 图）、压焓图（P-h 图）打交道。</p>
+          <div class="ex">实际应用：空调/冰箱压缩机设计、新能源汽车热泵、空气能热水器、超临界火力/核电站蒸汽轮机（朗肯循环）。</div>
+        </div>
+        <div class="major-card">
+          <h3>化学工程与工艺（化工） <span class="major-badge">玩转多组分相图</span></h3>
+          <p>核心课程是《化工热力学》《化工原理》。不只看纯水，还研究油、酒精、混合气体的汽液相平衡。</p>
+          <div class="ex">实际应用：石油分馏塔、白酒蒸馏提纯、液化天然气（LNG）加压/低温液化、超临界 CO₂ 脱咖啡因萃取。</div>
+        </div>
+        <div class="major-card">
+          <h3>材料科学与工程 / 冶金 <span class="major-badge">固体合金相图</span></h3>
+          <p>核心课程是《材料科学基础》《相图与相变》。把纵横轴换成“温度 × 成分比例”，看金属怎样结晶出不同组织。</p>
+          <div class="ex">实际应用：铁碳相图（决定钢铁是软铁还是硬刀刃）、铝合金热处理、芯片硅单晶生长、气相沉积镀膜。</div>
+        </div>
+        <div class="major-card">
+          <h3>物理学 / 化学（物理化学） <span class="major-badge">追问底层为什么</span></h3>
+          <p>核心课程是《热力学与统计物理》《物理化学》。从熵、吉布斯自由能和克劳修斯-克拉佩龙方程推导出相界斜率与相律。</p>
+          <div class="ex">实际应用：研究临界现象、超导/超流相变、高压下的新型冰晶（水其实有 20 多种高压冰相！）。</div>
+        </div>
+        <div class="major-card">
+          <h3>食品科学与生物制药工程 <span class="major-badge">真空冻干主力</span></h3>
+          <p>用水的三相点以下条件做真空冷冻干燥（Lyophilization），在不破坏蛋白质和细胞结构的前提下把水分升华抽干。</p>
+          <div class="ex">实际应用：冻干咖啡、冻干水果、疫苗与生物制剂的常温保存。</div>
+        </div>
+        <div class="major-card">
+          <h3>大气科学 / 地质与行星科学 <span class="major-badge">天地尺度的相图</span></h3>
+          <p>大气里水汽饱和曲线决定云雨雪霜和台风能量；地球深部几万大气压下的相变决定地震波速和金刚石形成。</p>
+          <div class="ex">实际应用：天气预报（露点与成云）、解释火星为什么难留液态水、寻找太阳系宜居冰卫星。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ==================== 工具与物理常数（纯水 H2O） ==================== */
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const clamp = (x, a, b) => x < a ? a : x > b ? b : x;
+  const lerp = (a, b, u) => a + (b - a) * u;
+
+  // 水的真实物理参数
+  const T_MIN = -50, T_MAX = 460;
+  const T_TRIPLE = 0.01, P_TRIPLE = 0.006036;   // 611.657 Pa
+  const T_CRIT = 373.95, P_CRIT = 217.75;       // 22.064 MPa
+  const LOGP_MIN = -3.7, LOGP_MAX = 3.4;        // ~0.0002 atm .. ~2512 atm
+
+  // IAPWS-95 Wagner 饱和蒸气压方程（0.01°C .. 373.95°C），返回 atm
+  function pVap(T) {
+    if (T >= T_CRIT) return P_CRIT;
+    if (T <= T_TRIPLE) return P_TRIPLE;
+    const Tk = T + 273.15;
+    const Tc = 647.096;
+    const tau = 1 - Tk / Tc;
+    const lnPr = (Tc / Tk) * (
+      -7.85951783 * tau
+      + 1.84408259 * Math.pow(tau, 1.5)
+      - 11.7866497 * Math.pow(tau, 3)
+      + 22.6807411 * Math.pow(tau, 3.5)
+      - 15.9618719 * Math.pow(tau, 4)
+      + 1.80122502 * Math.pow(tau, 7.5)
+    );
+    return P_CRIT * Math.exp(lnPr);
+  }
+
+  // 升华线（<= 0.01°C），准确拟合冰的饱和蒸气压，返回 atm
+  function pSub(T) {
+    if (T >= T_TRIPLE) return P_TRIPLE;
+    const Tk = T + 273.15;
+    return P_TRIPLE * Math.exp(6150 * (1 / 273.16 - 1 / Tk));
+  }
+
+  // 冰 Ih 熔化线（反常负斜率，准确到 ~2070 atm, -22°C），给定 P(atm) 返回 T(°C)
+  function tMelt(P) {
+    if (P < P_TRIPLE) return null;
+    const dP = Math.min(P, 2070) - P_TRIPLE;
+    return T_TRIPLE - 0.0074 * dP - 1.55e-6 * dP * dP;
+  }
+
+  // 给定 P(atm)，求沸点 T(°C)（二分反解 Wagner 方程）
+  function tBoil(P) {
+    if (P < P_TRIPLE || P > P_CRIT) return null;
+    let lo = T_TRIPLE, hi = T_CRIT;
+    for (let i = 0; i < 28; i++) {
+      const mid = (lo + hi) * 0.5;
+      if (pVap(mid) < P) lo = mid; else hi = mid;
+    }
+    return (lo + hi) * 0.5;
+  }
+
+  // 给定 P(atm) <= P_TRIPLE，求升华温度 T(°C)
+  function tSub(P) {
+    if (P <= 0 || P > P_TRIPLE) return null;
+    const invTk = 1 / 273.16 - Math.log(P / P_TRIPLE) / 6150;
+    return 1 / invTk - 273.15;
+  }
+
+  // 温度轴分段映射：让 -50..0、0..125 与临界点右侧的超临界区都有充裕空间
+  function tToNorm(T) {
+    const t = clamp(T, T_MIN, T_MAX);
+    if (t <= 0) return ((t - T_MIN) / (0 - T_MIN)) * 0.21;
+    if (t <= 125) return 0.21 + (t / 125) * 0.41;
+    if (t <= T_CRIT) return 0.62 + ((t - 125) / (T_CRIT - 125)) * 0.24;
+    return 0.86 + ((t - T_CRIT) / (T_MAX - T_CRIT)) * 0.14;
+  }
+  function normToT(u) {
+    const x = clamp(u, 0, 1);
+    if (x <= 0.21) return T_MIN + (x / 0.21) * (0 - T_MIN);
+    if (x <= 0.62) return ((x - 0.21) / 0.41) * 125;
+    if (x <= 0.86) return 125 + ((x - 0.62) / 0.24) * (T_CRIT - 125);
+    return T_CRIT + ((x - 0.86) / 0.14) * (T_MAX - T_CRIT);
+  }
+  function pToNorm(P) {
+    return clamp((Math.log10(P) - LOGP_MIN) / (LOGP_MAX - LOGP_MIN), 0, 1);
+  }
+  function normToP(u) {
+    return Math.pow(10, LOGP_MIN + clamp(u, 0, 1) * (LOGP_MAX - LOGP_MIN));
+  }
+
+  // 判断当前 (T, P) 处于什么相态
+  function classifyPhase(T, P) {
+    // 是否靠近三相点
+    if (Math.abs(T - T_TRIPLE) < 3.0 && Math.abs(Math.log10(P / P_TRIPLE)) < 0.16) {
+      return { id: 'triple', name: '三相共存（三相点）', en: 'TRIPLE POINT', color: '#34d399' };
+    }
+    // 是否靠近临界点
+    if (Math.abs(T - T_CRIT) < 12 && Math.abs(Math.log10(P / P_CRIT)) < 0.14) {
+      return { id: 'critical', name: '临界点（气液界线消失）', en: 'CRITICAL POINT', color: '#c084fc' };
+    }
+    // 超临界流体
+    if (T >= T_CRIT && P >= P_CRIT) {
+      return { id: 'scf', name: '超临界流体', en: 'SUPERCRITICAL FLUID', color: '#c084fc' };
+    }
+    // 低于三相点气压：只有固 / 气
+    if (P < P_TRIPLE) {
+      const ts = tSub(P);
+      if (ts !== null && Math.abs(T - ts) < 2.2) {
+        return { id: 'sub', name: '固气共存（升华 / 凝华）', en: 'SUBLIMATION LINE', color: '#a78bfa' };
+      }
+      return T < ts
+        ? { id: 'solid', name: '固态 · 冰', en: 'SOLID · ICE', color: '#38bdf8' }
+        : { id: 'gas', name: '气态 · 水蒸气', en: 'GAS · VAPOR', color: '#f59e0b' };
+    }
+    // 高于三相点气压
+    const tm = tMelt(P);
+    if (Math.abs(T - tm) < 1.8) {
+      return { id: 'melt', name: '固液共存（熔化 / 凝固）', en: 'MELTING LINE', color: '#60a5fa' };
+    }
+    if (T < tm) {
+      return { id: 'solid', name: '固态 · 冰', en: 'SOLID · ICE', color: '#38bdf8' };
+    }
+    if (P <= P_CRIT) {
+      const tb = tBoil(P);
+      if (tb !== null && Math.abs(T - tb) < 2.6) {
+        return { id: 'boil', name: '液气共存（沸腾 / 液化）', en: 'BOILING LINE', color: '#fb923c' };
+      }
+      return T < tb
+        ? { id: 'liquid', name: '液态 · 水', en: 'LIQUID · WATER', color: '#3b82f6' }
+        : { id: 'gas', name: '气态 · 水蒸气', en: 'GAS · VAPOR', color: '#f59e0b' };
+    }
+    // P > P_CRIT 且 T < T_CRIT（高压液态，平滑过渡到超临界）
+    return { id: 'liquid', name: '高压液态 · 水', en: 'COMPRESSED LIQUID', color: '#3b82f6' };
+  }
+
+  function formatP(P) {
+    if (P < 0.01) return `${P.toFixed(4)} atm`;
+    if (P < 0.1) return `${P.toFixed(3)} atm`;
+    if (P < 10) return `${P.toFixed(2)} atm`;
+    if (P < 100) return `${P.toFixed(1)} atm`;
+    return `${Math.round(P)} atm`;
+  }
+  function formatKpa(P) {
+    const kpa = P * 101.325;
+    if (kpa < 1) return `${Math.round(kpa * 1000)} Pa`;
+    if (kpa < 1000) return `${kpa.toFixed(1)} kPa`;
+    return `${(kpa / 1000).toFixed(2)} MPa`;
+  }
+  function pressureAnalogy(P) {
+    if (P < 0.002) return '高度真空（冻干机内部）';
+    if (P < 0.009) return '接近火星地表气压 / 三相点';
+    if (P < 0.06) return '实验室抽真空容器';
+    if (P < 0.42) return '约等于珠峰顶气压';
+    if (P < 0.78) return '约等于拉萨等高原气压';
+    if (P < 1.35) return '接近海平面标准大气压';
+    if (P < 3.2) return '约等于家用高压锅内气压';
+    if (P < 30) return `约等于水下 ${Math.round((P - 1) * 10)} 米深`;
+    if (P < 160) return '工业高压锅炉级别';
+    if (P < 350) return '超临界发电站级别（>218 atm）';
+    return '深海海沟 / 极高压级别';
+  }
+  function tempAnalogy(T) {
+    if (T < -25) return '极地严寒 / 深度冷冻';
+    if (T < -2) return '冰箱冷冻室温度';
+    if (T < 8) return '冰水混合物附近';
+    if (T < 35) return '日常室温';
+    if (T < 92) return '热水 / 高原沸水区间';
+    if (T < 108) return '1 atm 沸水温度附近';
+    if (T < 140) return '高压锅炖肉温度';
+    if (T < 350) return '过热蒸汽 / 工业锅炉';
+    return '超过水的临界温度（374°C）';
+  }
+
+  /* ==================== 全局状态 ==================== */
+  const state = {
+    tab: 'explore',
+    T: 25,
+    P: 1.0,
+    show1Atm: true,
+    showNormalMelt: false,
+    trail: [],
+    anim: null,         // 当前自动演示路径动画
+    activeScene: 0,
+    hpMode: 'cool',     // 'cool' | 'heat'
+    hpPlaying: true,
+    hpStep: 0,          // 高亮步骤 0..3
+    hpPhase: 0,         // 连续循环相位 0..4
+  };
+
+  const isLight = () => document.documentElement.classList.contains('light');
+
+  /* ==================== 相图绘制（Canvas HiDPI） ==================== */
+  const pdCanvas = $('#pdCanvas');
+  const pdCtx = pdCanvas.getContext('2d');
+  let pdRect = { l: 64, r: 22, t: 24, b: 48, w: 600, h: 400 };
+
+  function chartXY(T, P) {
+    const x = pdRect.l + tToNorm(T) * pdRect.w;
+    const y = pdRect.t + (1 - pToNorm(P)) * pdRect.h;
+    return [x, y];
+  }
+  function xyToTP(cx, cy) {
+    const u = (cx - pdRect.l) / pdRect.w;
+    const v = 1 - (cy - pdRect.t) / pdRect.h;
+    return [normToT(u), normToP(v)];
+  }
+
+  const LANDMARKS = [
+    { id: 'triple', T: T_TRIPLE, P: P_TRIPLE, label: '三相点', sub: '0.01°C · 0.006 atm', dx: 12, dy: 16 },
+    { id: 'melt1', T: 0, P: 1, label: '0°C', sub: '标准熔点', dx: -34, dy: -14 },
+    { id: 'boil1', T: 100, P: 1, label: '100°C', sub: '标准沸点', dx: 10, dy: 16 },
+    { id: 'crit', T: T_CRIT, P: P_CRIT, label: '临界点', sub: '374°C · 218 atm', dx: -72, dy: -16 },
+  ];
+
+  function drawPhaseDiagram() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = pdCanvas.clientWidth, h = pdCanvas.clientHeight;
+    if (!w || !h) return;
+    if (pdCanvas.width !== Math.round(w * dpr) || pdCanvas.height !== Math.round(h * dpr)) {
+      pdCanvas.width = Math.round(w * dpr);
+      pdCanvas.height = Math.round(h * dpr);
+    }
+    const ctx = pdCtx;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const light = isLight();
+    const padL = w < 480 ? 54 : 66;
+    const padR = 20, padT = 20, padB = 44;
+    pdRect = { l: padL, r: padR, t: padT, b: padB, w: w - padL - padR, h: h - padT - padB };
+    const { l, t, w: cw, h: ch } = pdRect;
+
+    ctx.fillStyle = light ? '#f8fafd' : '#0b1124';
+    ctx.fillRect(0, 0, w, h);
+
+    // 采样三条边界曲线
+    const subPts = [];
+    for (let i = 0; i <= 40; i++) {
+      const T = lerp(T_MIN, T_TRIPLE, i / 40);
+      subPts.push(chartXY(T, pSub(T)));
+    }
+    const meltPts = [];
+    const logPMaxMelt = Math.log10(2070);
+    for (let i = 0; i <= 48; i++) {
+      const P = Math.pow(10, lerp(Math.log10(P_TRIPLE), Math.min(LOGP_MAX, logPMaxMelt), i / 48));
+      meltPts.push(chartXY(tMelt(P), P));
+    }
+    // 如果顶部高于 2070 atm，延续至顶边
+    const topMeltPt = chartXY(tMelt(2070), Math.pow(10, LOGP_MAX));
+    const vapPts = [];
+    for (let i = 0; i <= 70; i++) {
+      const T = lerp(T_TRIPLE, T_CRIT, i / 70);
+      vapPts.push(chartXY(T, pVap(T)));
+    }
+
+    const [cxCrit, cyCrit] = chartXY(T_CRIT, P_CRIT);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(l, t, cw, ch);
+    ctx.clip();
+
+    // 1. 固态区域填充（左上）
+    ctx.beginPath();
+    ctx.moveTo(l, t);
+    ctx.lineTo(topMeltPt[0], t);
+    for (let i = meltPts.length - 1; i >= 0; i--) ctx.lineTo(meltPts[i][0], meltPts[i][1]);
+    for (let i = subPts.length - 1; i >= 0; i--) ctx.lineTo(subPts[i][0], subPts[i][1]);
+    ctx.lineTo(l, t + ch);
+    ctx.closePath();
+    ctx.fillStyle = light ? 'rgba(14,165,233,.16)' : 'rgba(56,189,248,.16)';
+    ctx.fill();
+
+    // 2. 液态区域填充（中上）
+    ctx.beginPath();
+    ctx.moveTo(topMeltPt[0], t);
+    ctx.lineTo(cxCrit, t);
+    ctx.lineTo(cxCrit, cyCrit);
+    for (let i = vapPts.length - 1; i >= 0; i--) ctx.lineTo(vapPts[i][0], vapPts[i][1]);
+    for (let i = 0; i < meltPts.length; i++) ctx.lineTo(meltPts[i][0], meltPts[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = light ? 'rgba(37,99,235,.15)' : 'rgba(59,130,246,.20)';
+    ctx.fill();
+
+    // 3. 气态区域填充（右下）
+    ctx.beginPath();
+    ctx.moveTo(l, t + ch);
+    for (let i = 0; i < subPts.length; i++) ctx.lineTo(subPts[i][0], subPts[i][1]);
+    for (let i = 0; i < vapPts.length; i++) ctx.lineTo(vapPts[i][0], vapPts[i][1]);
+    ctx.lineTo(l + cw, cyCrit);
+    ctx.lineTo(l + cw, t + ch);
+    ctx.closePath();
+    ctx.fillStyle = light ? 'rgba(234,88,12,.12)' : 'rgba(245,158,11,.15)';
+    ctx.fill();
+
+    // 4. 超临界流体区域（右上，平滑渐变表示无界线过渡）
+    const scfGrad = ctx.createLinearGradient(cxCrit, cyCrit, l + cw, t);
+    scfGrad.addColorStop(0, light ? 'rgba(147,51,234,.14)' : 'rgba(192,132,252,.18)');
+    scfGrad.addColorStop(1, light ? 'rgba(147,51,234,.28)' : 'rgba(192,132,252,.34)');
+    ctx.fillStyle = scfGrad;
+    ctx.fillRect(cxCrit, t, l + cw - cxCrit, cyCrit - t);
+
+    // 网格线
+    ctx.strokeStyle = light ? 'rgba(20,40,80,.08)' : 'rgba(160,200,255,.08)';
+    ctx.lineWidth = 1;
+    const tTicks = [-40, -20, 0, 25, 50, 75, 100, 125, 200, 300, 374];
+    for (const T of tTicks) {
+      const [x] = chartXY(T, 1);
+      ctx.beginPath(); ctx.moveTo(x, t); ctx.lineTo(x, t + ch); ctx.stroke();
+    }
+    const pTicks = [0.001, 0.01, 0.1, 1, 10, 100, 1000];
+    for (const P of pTicks) {
+      const [, y] = chartXY(0, P);
+      ctx.beginPath(); ctx.moveTo(l, y); ctx.lineTo(l + cw, y); ctx.stroke();
+    }
+
+    // 超临界虚线参考边界
+    ctx.save();
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = light ? 'rgba(126,34,206,.45)' : 'rgba(192,132,252,.45)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(cxCrit, cyCrit); ctx.lineTo(cxCrit, t); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cxCrit, cyCrit); ctx.lineTo(l + cw, cyCrit); ctx.stroke();
+    ctx.restore();
+
+    // 1 atm 标准大气压参考线
+    if (state.show1Atm) {
+      const [, y1] = chartXY(0, 1);
+      ctx.save();
+      ctx.setLineDash([7, 5]);
+      ctx.strokeStyle = light ? 'rgba(15,118,110,.7)' : 'rgba(52,211,153,.72)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(l, y1); ctx.lineTo(l + cw, y1); ctx.stroke();
+      ctx.fillStyle = light ? '#0f766e' : '#34d399';
+      ctx.font = w < 520 ? '700 11px -apple-system,"PingFang SC",sans-serif' : '700 12px -apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign = 'right';
+      const atmLabel = w < 520 ? '1 atm 标准气压' : '1 atm 标准大气压（日常水平线）';
+      ctx.fillText(atmLabel, l + cw - 8, y1 + 14);
+      ctx.restore();
+    }
+
+    // 对比：普通物质右倾熔化线
+    if (state.showNormalMelt) {
+      ctx.save();
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = light ? '#be123c' : '#fb7185';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i <= 30; i++) {
+        const P = Math.pow(10, lerp(Math.log10(P_TRIPLE), LOGP_MAX, i / 30));
+        const Tn = T_TRIPLE + 0.011 * (P - P_TRIPLE); // 典型正斜率物质示意
+        const [x, y] = chartXY(Tn, P);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      const [lx, ly] = chartXY(26, 1200);
+      ctx.fillStyle = light ? '#be123c' : '#fda4af';
+      ctx.font = '700 12px -apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('普通物质（右倾）', lx + 6, ly + 4);
+      ctx.restore();
+    }
+
+    // 绘制三条主相界线
+    const drawCurve = (pts, color, lw = 2.6) => {
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
+      ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();
+    };
+    drawCurve(subPts, light ? '#6d28d9' : '#a78bfa', 2.6);
+    drawCurve([...meltPts, topMeltPt], light ? '#0369a1' : '#38bdf8', 2.8);
+    drawCurve(vapPts, light ? '#c2410c' : '#fb923c', 2.8);
+
+    // 区域大标签
+    ctx.textAlign = 'center';
+    const bigFont = w < 520 ? '900 14px -apple-system,"PingFang SC",sans-serif' : '900 19px -apple-system,"PingFang SC",sans-serif';
+    ctx.font = bigFont;
+    let [sx, sy] = chartXY(-25, 4);
+    ctx.fillStyle = light ? 'rgba(2,132,199,.88)' : 'rgba(125,211,252,.92)';
+    ctx.fillText(w < 520 ? '固态' : '固态（冰）', sx, sy);
+
+    let [lx, ly] = chartXY(68, 25);
+    ctx.fillStyle = light ? 'rgba(29,78,216,.88)' : 'rgba(147,197,253,.92)';
+    ctx.fillText('液态（水）', lx, ly);
+
+    let [gx, gy] = chartXY(175, 0.06);
+    ctx.fillStyle = light ? 'rgba(194,65,12,.88)' : 'rgba(253,186,116,.92)';
+    ctx.fillText('气态（水蒸气）', gx, gy);
+
+    ctx.font = w < 520 ? '800 11px -apple-system,"PingFang SC",sans-serif' : '800 14px -apple-system,"PingFang SC",sans-serif';
+    const scfMidX = (cxCrit + l + cw) * 0.5;
+    const scfMidY = (t + cyCrit) * 0.5;
+    ctx.fillStyle = light ? 'rgba(126,34,206,.92)' : 'rgba(216,180,254,.96)';
+    ctx.fillText('超临界', scfMidX, scfMidY - 7);
+    ctx.fillText('流体', scfMidX, scfMidY + 11);
+
+    // 相界小标签
+    ctx.font = '700 11px -apple-system,"PingFang SC",sans-serif';
+    ctx.fillStyle = light ? '#0369a1' : '#7dd3fc';
+    const [, mly] = chartXY(-11, 700);
+    ctx.textAlign = 'left';
+    ctx.fillText(w < 520 ? '冰左倾→' : '冰熔化线（左倾）→', l + 6, mly);
+
+    ctx.fillStyle = light ? '#c2410c' : '#fdba74';
+    const [vlx, vly] = chartXY(180, pVap(180));
+    ctx.textAlign = 'left';
+    ctx.fillText('沸腾 / 液化线', vlx + 8, vly + 14);
+
+    // 关键地标点
+    for (const lm of LANDMARKS) {
+      if ((lm.id === 'melt1' || lm.id === 'boil1') && !state.show1Atm) continue;
+      const [x, y] = chartXY(lm.T, lm.P);
+      ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = lm.id === 'triple' ? '#34d399' : lm.id === 'crit' ? '#c084fc' : '#f8fafc';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = light ? '#1e293b' : '#070b18';
+      ctx.stroke();
+
+      ctx.font = '700 12px -apple-system,"PingFang SC",sans-serif';
+      ctx.fillStyle = light ? '#0f172a' : '#f1f5f9';
+      ctx.textAlign = lm.dx < 0 ? 'right' : 'left';
+      const tx = lm.dx < 0 ? x - 8 : x + 8;
+      ctx.fillText(lm.label, tx, y + lm.dy * 0.55);
+      if (w >= 480) {
+        ctx.font = '600 10px "SF Mono",Menlo,monospace';
+        ctx.fillStyle = light ? '#475569' : '#94a3b8';
+        ctx.fillText(lm.sub, tx, y + lm.dy * 0.55 + 13);
+      }
+    }
+
+    // 轨迹线
+    if (state.trail.length > 1) {
+      ctx.beginPath();
+      state.trail.forEach((pt, i) => {
+        const [x, y] = chartXY(pt.T, pt.P);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = light ? 'rgba(225,29,72,.82)' : 'rgba(251,191,36,.88)';
+      ctx.lineWidth = 2.6;
+      ctx.stroke();
+    }
+
+    // 当前状态点（可拖动）
+    const [px, py] = chartXY(state.T, state.P);
+    const ph = classifyPhase(state.T, state.P);
+    ctx.beginPath(); ctx.arc(px, py, 16, 0, Math.PI * 2);
+    ctx.fillStyle = light ? 'rgba(29,78,216,.16)' : 'rgba(255,255,255,.16)';
+    ctx.fill();
+    ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI * 2);
+    ctx.fillStyle = ph.color;
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+
+    // 十字辅助读数虚线
+    ctx.save();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = light ? 'rgba(15,23,42,.35)' : 'rgba(255,255,255,.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px, py + 10); ctx.lineTo(px, t + ch);
+    ctx.moveTo(l, py); ctx.lineTo(px - 10, py);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.restore(); // 结束裁剪
+
+    // 坐标轴边框与刻度
+    ctx.strokeStyle = light ? 'rgba(20,40,80,.3)' : 'rgba(180,210,255,.28)';
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(l, t, cw, ch);
+
+    ctx.fillStyle = light ? '#334155' : '#9fb1d1';
+    ctx.font = '600 11px "SF Mono",Menlo,monospace';
+    ctx.textAlign = 'center';
+    const xLabelTicks = w < 480 ? [-40, 0, 50, 100, 200, 374] : [-40, -20, 0, 25, 50, 75, 100, 125, 200, 300, 374];
+    for (const T of xLabelTicks) {
+      const [x] = chartXY(T, 1);
+      ctx.fillText(`${T}°`, x, t + ch + 16);
+    }
+    ctx.font = '700 12px -apple-system,"PingFang SC",sans-serif';
+    ctx.fillText('温度 T (°C)', l + cw * 0.5, t + ch + 35);
+
+    ctx.textAlign = 'right';
+    ctx.font = '600 11px "SF Mono",Menlo,monospace';
+    const yLabels = [
+      [0.001, '0.001'], [0.01, '0.01'], [0.1, '0.1'], [1, '1'], [10, '10'], [100, '100'], [1000, '1000']
+    ];
+    for (const [P, txt] of yLabels) {
+      const [, y] = chartXY(0, P);
+      ctx.fillStyle = P === 1 ? (light ? '#0f766e' : '#34d399') : (light ? '#334155' : '#9fb1d1');
+      ctx.fillText(txt, l - 8, y + 4);
+    }
+    ctx.save();
+    ctx.translate(15, t + ch * 0.5);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.font = '700 12px -apple-system,"PingFang SC",sans-serif';
+    ctx.fillStyle = light ? '#334155' : '#9fb1d1';
+    ctx.fillText('气压 P (atm，对数)', 0, 0);
+    ctx.restore();
+  }
+
+  /* ==================== 实时微观活塞容器模拟 ==================== */
+  const pistonCanvas = $('#pistonCanvas');
+  const pCtx = pistonCanvas.getContext('2d');
+  const MOL_COUNT = 54;
+  const mols = Array.from({ length: MOL_COUNT }, (_, i) => ({
+    x: Math.random(), y: Math.random(),
+    vx: (Math.random() - 0.5) * 1.4, vy: (Math.random() - 0.5) * 1.4,
+    ang: Math.random() * Math.PI * 2,
+    va: (Math.random() - 0.5) * 0.08,
+    idx: i,
+  }));
+
+  function stepAndDrawPiston(dt) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = pistonCanvas.clientWidth, h = pistonCanvas.clientHeight;
+    if (!w || !h) return;
+    if (pistonCanvas.width !== Math.round(w * dpr) || pistonCanvas.height !== Math.round(h * dpr)) {
+      pistonCanvas.width = Math.round(w * dpr);
+      pistonCanvas.height = Math.round(h * dpr);
+    }
+    const ctx = pCtx;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const light = isLight();
+
+    ctx.fillStyle = light ? '#f8fafd' : '#0b1124';
+    ctx.fillRect(0, 0, w, h);
+
+    const ph = classifyPhase(state.T, state.P);
+    const pNorm = pToNorm(state.P); // 0..1
+    const tNorm = clamp((state.T - T_MIN) / (T_MAX - T_MIN), 0, 1);
+
+    // 容器内壁几何
+    const wallL = 36, wallR = w - 36, wallT = 18, wallB = h - 22;
+    const innerW = wallR - wallL;
+
+    // 活塞高度：压强越大压得越低；气态体积更大
+    let pistonRatio = 0.24 + pNorm * 0.34;
+    if (ph.id === 'gas') pistonRatio = 0.14 + pNorm * 0.34;
+    else if (ph.id === 'solid' || ph.id === 'liquid' || ph.id === 'melt') pistonRatio = 0.28 + pNorm * 0.20;
+    else if (ph.id === 'scf') pistonRatio = 0.44 + pNorm * 0.12;
+    const pistonY = wallT + pistonRatio * (wallB - wallT);
+    const chamberH = wallB - pistonY;
+
+    // 底部加热/制冷光晕
+    const heatGrad = ctx.createLinearGradient(0, wallB, 0, wallB - 48);
+    const heatCol = state.T > 60 ? 'rgba(251,113,133,.32)' : state.T < 0 ? 'rgba(56,189,248,.28)' : 'rgba(59,130,246,.12)';
+    heatGrad.addColorStop(0, heatCol);
+    heatGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = heatGrad;
+    ctx.fillRect(wallL, wallB - 48, innerW, 48);
+
+    // 外部气压向下箭头（可视化“隐形盖子”）
+    const arrowCount = Math.max(1, Math.round(1 + pNorm * 5));
+    const arrowLen = 10 + pNorm * 18;
+    ctx.strokeStyle = light ? '#0284c7' : '#38bdf8';
+    ctx.fillStyle = light ? '#0284c7' : '#38bdf8';
+    ctx.lineWidth = 1.6 + pNorm * 1.4;
+    for (let i = 0; i < arrowCount; i++) {
+      const ax = wallL + innerW * ((i + 0.5) / arrowCount);
+      const ay2 = pistonY - 6;
+      const ay1 = Math.max(wallT + 2, ay2 - arrowLen);
+      ctx.beginPath(); ctx.moveTo(ax, ay1); ctx.lineTo(ax, ay2); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(ax, ay2 + 2); ctx.lineTo(ax - 4, ay2 - 5); ctx.lineTo(ax + 4, ay2 - 5); ctx.closePath();
+      ctx.fill();
+    }
+
+    // 活塞盖子
+    ctx.fillStyle = light ? '#94a3b8' : '#334155';
+    ctx.fillRect(wallL + 1, pistonY - 8, innerW - 2, 10);
+    ctx.fillStyle = light ? '#475569' : '#64748b';
+    ctx.fillRect(wallL + innerW * 0.44, wallT, innerW * 0.12, pistonY - 8 - wallT);
+
+    // 绘制容器壁
+    ctx.strokeStyle = light ? '#475569' : '#64748b';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(wallL, wallT); ctx.lineTo(wallL, wallB); ctx.lineTo(wallR, wallB); ctx.lineTo(wallR, wallT);
+    ctx.stroke();
+
+    // 液面背景（液态或沸腾/熔化/三相共存时）
+    const hasLiquid = ph.id === 'liquid' || ph.id === 'boil' || ph.id === 'melt' || ph.id === 'triple';
+    const liqTop = wallB - chamberH * (ph.id === 'liquid' ? 0.62 : 0.48);
+    if (hasLiquid) {
+      ctx.fillStyle = light ? 'rgba(59,130,246,.14)' : 'rgba(59,130,246,.18)';
+      ctx.fillRect(wallL + 2, liqTop, innerW - 4, wallB - liqTop - 2);
+      ctx.strokeStyle = light ? 'rgba(37,99,235,.45)' : 'rgba(96,165,250,.55)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(wallL + 2, liqTop); ctx.lineTo(wallR - 2, liqTop); ctx.stroke();
+    }
+    if (ph.id === 'scf') {
+      ctx.fillStyle = light ? 'rgba(147,51,234,.13)' : 'rgba(192,132,252,.14)';
+      ctx.fillRect(wallL + 2, pistonY + 2, innerW - 4, chamberH - 4);
+    }
+
+    // 更新并绘制水分子
+    const now = performance.now() * 0.001;
+    const speedBase = 0.35 + tNorm * 2.8;
+    const cols = 9, rows = 6;
+    const cellW = (innerW - 36) / cols;
+    const cellH = Math.min((chamberH - 22) / rows, 20);
+
+    // 固态六角蜂窝晶格（刻意留出镂空，体现冰比水疏松！）
+    const latticePos = (i) => {
+      const r = Math.floor(i / cols);
+      const c = i % cols;
+      const shift = (r % 2) * cellW * 0.5;
+      const hx = wallL + 20 + c * cellW + shift * 0.7;
+      const hy = wallB - 14 - r * cellH * 1.05;
+      return [hx, hy];
+    };
+
+    // 固态氢键连线
+    if (ph.id === 'solid' || ph.id === 'melt' || ph.id === 'triple' || ph.id === 'sub') {
+      const solidLimit = ph.id === 'solid' ? MOL_COUNT : Math.floor(MOL_COUNT * 0.45);
+      ctx.save();
+      ctx.setLineDash([2, 3]);
+      ctx.strokeStyle = light ? 'rgba(2,132,199,.38)' : 'rgba(125,211,252,.35)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < solidLimit; i++) {
+        const [x1, y1] = latticePos(i);
+        const r = Math.floor(i / cols), c = i % cols;
+        if (c + 1 < cols && i + 1 < solidLimit) {
+          const [x2, y2] = latticePos(i + 1);
+          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        }
+        if (r + 1 < rows && i + cols < solidLimit) {
+          const [x2, y2] = latticePos(i + cols);
+          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
+    for (let i = 0; i < MOL_COUNT; i++) {
+      const m = mols[i];
+      let role = ph.id;
+      if (ph.id === 'melt') role = i < 24 ? 'solid' : 'liquid';
+      else if (ph.id === 'boil') role = i < 32 ? 'liquid' : 'gas';
+      else if (ph.id === 'sub') role = i < 24 ? 'solid' : 'gas';
+      else if (ph.id === 'triple') role = i < 18 ? 'solid' : i < 36 ? 'liquid' : 'gas';
+      else if (ph.id === 'critical') role = 'scf';
+
+      let drawX, drawY, col;
+      if (role === 'solid') {
+        const [hx, hy] = latticePos(i);
+        const amp = 1.0 + clamp((state.T + 50) / 60, 0, 1.5) * 1.8;
+        drawX = hx + Math.sin(now * 14 + i * 2.1) * amp;
+        drawY = hy + Math.cos(now * 13 + i * 1.7) * amp;
+        col = light ? '#0284c7' : '#38bdf8';
+      } else if (role === 'liquid') {
+        m.x += m.vx * dt * 0.35 * speedBase;
+        m.y += m.vy * dt * 0.25 * speedBase;
+        if (m.x < 0.04 || m.x > 0.96) { m.vx *= -1; m.x = clamp(m.x, 0.04, 0.96); }
+        if (m.y < 0.06 || m.y > 0.94) { m.vy *= -1; m.y = clamp(m.y, 0.06, 0.94); }
+        drawX = wallL + 10 + m.x * (innerW - 20);
+        drawY = liqTop + 8 + m.y * Math.max(20, wallB - liqTop - 16);
+        col = light ? '#1d4ed8' : '#60a5fa';
+      } else if (role === 'scf') {
+        m.x += m.vx * dt * 0.9 * speedBase;
+        m.y += m.vy * dt * 0.9 * speedBase;
+        if (m.x < 0.03 || m.x > 0.97) { m.vx *= -1; m.x = clamp(m.x, 0.03, 0.97); }
+        if (m.y < 0.04 || m.y > 0.96) { m.vy *= -1; m.y = clamp(m.y, 0.04, 0.96); }
+        drawX = wallL + 10 + m.x * (innerW - 20);
+        drawY = pistonY + 10 + m.y * Math.max(24, chamberH - 18);
+        col = light ? '#7e22ce' : '#c084fc';
+      } else {
+        // gas
+        m.x += m.vx * dt * 0.95 * speedBase;
+        m.y += m.vy * dt * 0.95 * speedBase;
+        if (m.x < 0.03 || m.x > 0.97) { m.vx *= -1; m.x = clamp(m.x, 0.03, 0.97); }
+        if (m.y < 0.04 || m.y > 0.96) { m.vy *= -1; m.y = clamp(m.y, 0.04, 0.96); }
+        drawX = wallL + 10 + m.x * (innerW - 20);
+        const topY = pistonY + 10;
+        const botY = hasLiquid ? liqTop - 6 : wallB - 10;
+        drawY = topY + m.y * Math.max(18, botY - topY);
+        col = light ? '#ea580c' : '#fbbf24';
+      }
+      m.ang += m.va * (role === 'solid' ? 0.1 : speedBase);
+
+      // 画可爱的 H2O 小分子（红/主色氧原子 + 两颗白色氢原子）
+      ctx.save();
+      ctx.translate(drawX, drawY);
+      ctx.rotate(m.ang);
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(0, 0, 4.3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = light ? '#f8fafc' : '#e2e8f0';
+      ctx.beginPath(); ctx.arc(3.8, -2.5, 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(3.8, 2.5, 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // 底部温度与顶部气压文字标注
+    ctx.font = '700 11px "SF Mono",Menlo,monospace';
+    ctx.fillStyle = light ? '#334155' : '#cbd5e1';
+    ctx.textAlign = 'left';
+    ctx.fillText(`P = ${formatP(state.P)}`, wallL + 4, wallT + 12);
+    ctx.textAlign = 'right';
+    ctx.fillText(`T = ${state.T.toFixed(1)}°C`, wallR - 4, wallB + 14);
+  }
+
+  /* ==================== 更新读数与大白话解读 ==================== */
+  function updateReadouts() {
+    const T = state.T, P = state.P;
+    $('#valT').textContent = `${T.toFixed(1)} °C`;
+    $('#subT').textContent = `约 ${(T + 273.15).toFixed(1)} K · ${tempAnalogy(T)}`;
+    $('#valP').textContent = formatP(P);
+    $('#subP').textContent = `${formatKpa(P)} · ${pressureAnalogy(P)}`;
+
+    $('#slT').value = Math.round(tToNorm(T) * 1000);
+    $('#slP').value = Math.round(pToNorm(P) * 1000);
+
+    const ph = classifyPhase(T, P);
+    const badge = $('#phaseBadge');
+    badge.style.color = ph.color;
+    $('#phaseName').textContent = ph.name;
+    $('#phaseEn').textContent = ph.en;
+
+    const tb = tBoil(P);
+    const tm = tMelt(P);
+    if (P < P_TRIPLE) {
+      const ts = tSub(P);
+      $('#mBoil').textContent = '无液态（直接升华）';
+      $('#mMelt').textContent = `升华点 ${ts.toFixed(1)} °C`;
+    } else if (P > P_CRIT) {
+      $('#mBoil').textContent = '无沸点（超临界）';
+      $('#mMelt').textContent = tm !== null ? `${tm.toFixed(1)} °C` : '高压冰相';
+    } else {
+      $('#mBoil').textContent = `${tb.toFixed(1)} °C`;
+      $('#mMelt').textContent = `${tm.toFixed(2)} °C`;
+    }
+
+    // 动态人话解释
+    let main = '', tip = '';
+    if (ph.id === 'triple') {
+      main = '<strong>你正好点在了水的三相点（0.01°C，0.006 atm）！</strong>冰、液态水、水蒸气三种状态在这里能和平共存。';
+      tip = '只要气压再低一点点，液态水就会彻底消失，这也是真空冻干的核心门槛。';
+    } else if (ph.id === 'critical') {
+      main = '<strong>你到了水的临界点（374°C，218 atm）！</strong>液态水和高压水蒸气的密度在这里完全相等，液面瞬间消失。';
+      tip = '从这里往上往右，就进入既像液又像气的“超临界流体”。';
+    } else if (ph.id === 'scf') {
+      main = '<strong>现在是超临界流体：</strong>温度够高让分子狂奔，气压又够大把它们紧紧挤在一起，液体和气体分不清彼此。';
+      tip = '超临界水溶解力和扩散力极强，常用于超临界发电锅炉和特种工业氧化处理。';
+    } else if (ph.id === 'boil') {
+      main = `<strong>正踩在沸腾 / 液化界线上！</strong>在 ${formatP(P)} 下，水的沸点正好是 ${tb.toFixed(1)}°C。`;
+      tip = '向右（吸热）就沸腾汽化；向左（放热）或向上（加压）就会液化放热——空调压缩机玩的就是这一招！';
+    } else if (ph.id === 'melt') {
+      main = `<strong>正踩在冰的熔化线上！</strong>在 ${formatP(P)} 下，冰的熔点是 ${tm.toFixed(2)}°C。`;
+      tip = '因为冰的密度比水小，把气压升到上百上千倍时，熔点会反常地降到 0°C 以下。';
+    } else if (ph.id === 'sub') {
+      main = '<strong>气压低于三相点，冰正在跳过液态直接升华成水蒸气！</strong>';
+      tip = '冻干咖啡、冻干草莓就是把食物冻住后抽真空到这里，让冰直接升华逃走，不化一滴水。';
+    } else if (ph.id === 'solid') {
+      if (P < P_TRIPLE) {
+        main = `<strong>固态冰（极低气压下）：</strong>因为气压低于 0.006 atm，即使继续升温，它也不会化成水，而是直接升华成气！`;
+        tip = '向右拉动温度滑块，看看冰怎样直接变成水蒸气。';
+      } else if (P > 200) {
+        main = `<strong>高压下的冰：</strong>分子排在镂空的六角晶格里。气压高达 ${formatP(P)}，熔点已经被压低到 ${tm.toFixed(1)}°C。`;
+        tip = '试着继续调高气压，你会看到冰被活生生“压化”成液态水！';
+      } else {
+        main = `<strong>固态冰：</strong>分子被氢键锁在六角晶格里原位振动，排布比液态水更疏松，所以冰会浮在水面上。`;
+        tip = '试着向右加温跨过 0°C，或者把气压降到 0.006 atm 以下再加热看看有什么不同。';
+      }
+    } else if (ph.id === 'liquid') {
+      if (P < 0.75) {
+        main = `<strong>低压下的液态水：</strong>液面上的“气压盖子”变轻了，水只要到 <strong>${tb.toFixed(1)}°C</strong> 就会沸腾（比 100°C 低）。`;
+        tip = '高原煮不熟面条就是这个原因——水早早就沸腾了，温度卡在沸点上不去。';
+      } else if (P > 1.4 && P <= P_CRIT) {
+        main = `<strong>高压下的液态水：</strong>“气压盖子”压得很紧，水要烧到 <strong>${tb.toFixed(1)}°C</strong> 才会沸腾！`;
+        tip = '高压锅正是靠憋高气压来拉高水温，让炖肉和煮豆子快上好几倍。';
+      } else {
+        main = `<strong>液态水：</strong>分子紧挨着却能自由滑动。在当前气压（${formatP(P)}）下，沸点约 ${tb ? tb.toFixed(1) + '°C' : '已超过临界点'}。`;
+        tip = '不用加热，直接把气压滑块往下拖，就能让这杯水在室温下沸腾！';
+      }
+    } else {
+      main = `<strong>气态水蒸气：</strong>分子热运动占了绝对上风，高速乱撞、充满整个容器。`;
+      tip = P < P_CRIT
+        ? '想让它变回水？除了降温（向左），还可以直接加压（向上）跨过沸腾线！'
+        : '气压已超过临界点，降温就会无缝过渡成高密度流体。';
+    }
+    $('#expMain').innerHTML = main;
+    $('#expTip').textContent = tip;
+  }
+
+  /* ==================== 路径动画引擎 ==================== */
+  function stopAnim() {
+    state.anim = null;
+    $$('.path-btn').forEach(b => b.classList.remove('playing'));
+  }
+
+  function playPath(waypoints, durationSec = 4.2, clearFirst = true) {
+    stopAnim();
+    if (clearFirst) state.trail = [];
+    state.anim = {
+      waypoints,
+      t: 0,
+      dur: durationSec,
+    };
+  }
+
+  function stepAnim(dt) {
+    if (!state.anim) return;
+    const a = state.anim;
+    a.t += dt;
+    const u = clamp(a.t / a.dur, 0, 1);
+    const pts = a.waypoints;
+    const segs = pts.length - 1;
+    const pos = u * segs;
+    const idx = Math.min(segs - 1, Math.floor(pos));
+    const localU = pos - idx;
+    const smoothU = localU * localU * (3 - 2 * localU);
+    const p0 = pts[idx], p1 = pts[idx + 1];
+    state.T = lerp(p0.T, p1.T, smoothU);
+    state.P = Math.pow(10, lerp(Math.log10(p0.P), Math.log10(p1.P), smoothU));
+    state.trail.push({ T: state.T, P: state.P });
+    if (state.trail.length > 260) state.trail.shift();
+    updateReadouts();
+    if (u >= 1) stopAnim();
+  }
+
+  const QUICK_PATHS = {
+    '1atm': [
+      { T: -30, P: 1 }, { T: 0, P: 1 }, { T: 100, P: 1 }, { T: 145, P: 1 }
+    ],
+    'vacuum': [
+      { T: 25, P: 1 }, { T: 25, P: 0.031 }, { T: 25, P: 0.008 }
+    ],
+    'compress': [
+      { T: 110, P: 0.4 }, { T: 110, P: 1.42 }, { T: 110, P: 8 }
+    ],
+    'sublimate': [
+      { T: -25, P: 1 }, { T: -25, P: 0.001 }, { T: 20, P: 0.001 }
+    ],
+    'supercrit': [
+      { T: 120, P: 20 }, { T: 120, P: 450 }, { T: 405, P: 450 }, { T: 405, P: 20 }, { T: 260, P: 20 }
+    ],
+  };
+
+  /* ==================== 生活场景数据 ==================== */
+  const SCENES = [
+    {
+      tag: '低压 · 沸点降低',
+      title: '高原煮不熟面（拉萨 / 珠峰）',
+      brief: '气压降到 0.65 / 0.33 atm，水 88°C 或 71°C 就开了',
+      path: [{ T: 25, P: 1 }, { T: 25, P: 0.65 }, { T: 88, P: 0.65 }, { T: 88, P: 0.33 }, { T: 71, P: 0.33 }],
+      what: '在拉萨（海拔 3650 米）气压只有约 0.65 atm，水烧到 88°C 就剧烈沸腾；到珠峰顶（0.33 atm）更是 71°C 就沸腾了。一旦沸腾，再猛的火都只能把水变成蒸汽，水温升不上去，米饭夹生、鸡蛋煮不熟。',
+      map: '先从标准大气压向下移到低压区，再向右加热——很快就撞上了向下弯曲的“沸腾线”，撞线点的温度远低于 100°C。',
+      note: '解决办法就是把气压“补回来”：在高原必须用高压锅！',
+    },
+    {
+      tag: '高压 · 沸点升高',
+      title: '高压锅为什么炖肉特别快？',
+      brief: '限压阀把气压憋到 ~2 atm，水温能升到 120°C',
+      path: [{ T: 25, P: 1 }, { T: 100, P: 1 }, { T: 120, P: 1.96 }],
+      what: '高压锅盖紧密封后，水蒸气跑不出去，锅内气压不断升高，直到顶起约 2 atm 的限压阀。这时水的沸点被推高到约 120°C，食物泡在 120°C 的滚水里，化学反应速度翻倍，炖牛腩能省一半以上时间。',
+      map: '沿着沸腾线向右上方爬升：气压从 1 atm 升到约 2 atm，沸点跟着从 100°C 跳到 120°C。',
+      note: '火电厂的锅炉也是超大号高压锅，把气压加到上百甚至超过 218 atm，就能得到几百摄氏度的高能量蒸汽去推涡轮发电。',
+    },
+    {
+      tag: '减压沸腾',
+      title: '不加热，25°C 的冷水也能沸腾！',
+      brief: '抽真空到 0.03 atm，室温水立刻咕嘟咕嘟冒泡',
+      path: [{ T: 25, P: 1 }, { T: 25, P: 0.031 }, { T: 25, P: 0.015 }],
+      what: '拿一支医用大针筒吸一小段温水，堵住针口用力往外拉活塞，筒内气压骤降，水会突然剧烈沸腾冒泡！你完全没点炉子，只是把压在液面上的“气压盖子”掀掉了。',
+      map: '在相图上保持温度 25°C 不动，垂直向下走，穿过沸腾线进入气态区。',
+      note: '注意：沸腾是吸热过程！冷水减压沸腾时反而会越沸越凉——这正是空调蒸发器吸热制冷的直接前身！',
+    },
+    {
+      tag: '三相点以下 · 升华',
+      title: '冻干咖啡与冻干草莓是怎么做的？',
+      brief: '冻成冰 → 抽真空到 0.006 atm 以下 → 冰直接升华',
+      path: [{ T: 20, P: 1 }, { T: -30, P: 1 }, { T: -30, P: 0.001 }, { T: 15, P: 0.001 }],
+      what: '如果直接高温烘干草莓，果肉会塌陷、发黑、香味全跑光。真空冻干先把草莓急冻成冰，再抽成高度真空（气压低于三相点 0.006 atm），微微加热让冰跳过液态直接升华成水蒸气抽走，留下酥脆蓬松的原形。',
+      map: '在相图上绕到“三相点”的下方：先向左冻成冰，再垂直向下越过 0.006 atm，最后向右跨过升华线直接变气态。',
+      note: '宇航员食品、疫苗和生物药剂也靠真空冻干技术实现长期常温保存。',
+    },
+    {
+      tag: '水的反常 · 辟谣',
+      title: '高压把冰“压化” & 滑冰真相',
+      brief: '冰的熔化线左倾：加压能融冰，但冰刀压力远没你想的那么大',
+      path: [{ T: -6, P: 1 }, { T: -6, P: 700 }, { T: -6, P: 1400 }],
+      what: '把一根挂着重物的细铁丝搭在冰块上，铁丝下方的局部高压会把冰压化，铁丝往下沉，上方恢复常压后水又重新冻住——铁丝穿过整块冰，冰块却完好无损（复冰现象）。冰川底部承受千米冰层重压也会融化润滑。',
+      map: '在 -6°C 附近垂直向上走到约 1000 atm，会向左穿过水特有的“左倾熔化线”，从固态冰直接变成液态水！',
+      note: '顺便辟谣：老课本常说“滑冰是冰刀把冰压化了”，其实冰每降 1°C 熔点要约 135 atm，普通滑冰鞋压不出这么高压力。现代物理证实，滑冰很滑主要靠冰面本身极薄的“准液态分子层”+ 摩擦生热，压力融冰只是次要辅助！',
+    },
+    {
+      tag: '绕过临界点',
+      title: '超临界流体：不沸腾也能液变气！',
+      brief: '超过 374°C、218 atm 后，液态和气态的边界彻底消失',
+      path: [{ T: 120, P: 20 }, { T: 120, P: 450 }, { T: 405, P: 450 }, { T: 405, P: 20 }],
+      what: '沿着高空绕过临界点，你可以把一杯液态水变成水蒸气，全程不出现一个气泡、不经历“沸腾”！因为超临界流体既像液体一样稠密，又像气体一样能轻松钻进微小缝隙。',
+      map: '先加压到 218 atm 以上，再升温超过 374°C，最后降压——完美绕开沸腾线的终点（临界点）！',
+      note: '水的临界条件太苛刻（374°C/218 atm），工业上更常用二氧化碳：CO₂ 只要 31°C、73 atm 就是超临界流体，被广泛用来做运动鞋超临界发泡鞋底、给咖啡豆脱咖啡因。',
+    },
+    {
+      tag: '行星科学',
+      title: '火星为什么几乎留不住液态水？',
+      brief: '火星地表平均气压仅 ~0.006 atm，刚好卡在水的三相点门口',
+      path: [{ T: -45, P: 0.0055 }, { T: 5, P: 0.0055 }],
+      what: '火星不是因为“太冷”才没海洋，更致命的是大气太稀薄——地表平均气压只有地球的 0.6%（约 0.006 atm），正好踩在水的三相点附近甚至更低！太阳一晒，冰来不及化水就直接升华成水蒸气跑了。',
+      map: '整条水平线压在三相点（0.006 atm）的边缘，几乎没有“液态区”可供停留。',
+      note: '只有在火星极低洼的盆地底部，气压略高于 0.006 atm 时，才有可能出现极其短暂的液态卤水。',
+    },
+  ];
+
+  function buildSceneCards() {
+    const grid = $('#sceneGrid');
+    grid.innerHTML = '';
+    SCENES.forEach((sc, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'scene-card' + (idx === state.activeScene ? ' on' : '');
+      btn.innerHTML = `<span class="scene-tag">${sc.tag}</span><h3>${sc.title}</h3><p>${sc.brief}</p>`;
+      btn.addEventListener('click', () => selectScene(idx));
+      grid.appendChild(btn);
+    });
+    renderSceneDetail(state.activeScene);
+  }
+
+  function renderSceneDetail(idx) {
+    const sc = SCENES[idx];
+    $('#sdWhat').textContent = sc.what;
+    $('#sdMap').textContent = sc.map;
+    $('#sdNote').textContent = sc.note;
+  }
+
+  function selectScene(idx) {
+    state.activeScene = idx;
+    $$('.scene-card').forEach((el, i) => el.classList.toggle('on', i === idx));
+    renderSceneDetail(idx);
+    const sc = SCENES[idx];
+    playPath(sc.path, 3.8, true);
+  }
+
+  /* ==================== 空调与热泵模拟器（Tab 3） ==================== */
+  const hpMachine = $('#hpMachine');
+  const hpMCtx = hpMachine.getContext('2d');
+  const hpChart = $('#hpChart');
+  const hpCCtx = hpChart.getContext('2d');
+
+  // 制冷剂示意循环参数（R32 风格）
+  const HP_DATA = {
+    cool: {
+      title: '夏天制冷模式：把 26°C 室内的热量，硬搬到 35°C 的炎热室外',
+      indoorRole: '蒸发器（吸热 · 吹冷风）',
+      outdoorRole: '冷凝器（放热 · 吹热风）',
+      indoorTemp: '26°C',
+      outdoorTemp: '35°C',
+      evapT: 5, evapP: 9.5,
+      condT: 50, condP: 31,
+      compEndT: 74,
+      subCoolT: 44,
+      steps: [
+        {
+          name: '① 压缩机：加压升温',
+          body: '把室内流回来的低温低压气体（约 10°C, 9.5 atm）狠狠压缩到 31 atm、74°C！关键目的：加压把制冷剂的液化温度抬高到 50°C——这样它就比 35°C 的室外空气热得多，热量才能流向室外！',
+        },
+        {
+          name: '② 室外机（冷凝器）：高压液化放热',
+          body: '高温高压气体流经室外机散热片。因为它的液化点（50°C）高于室外空气（35°C），室外空气反而能帮它散热，让它在高压下液化成液体，放出大量潜热——所以站在空调外机旁会吹到滚烫的热风！',
+        },
+        {
+          name: '③ 膨胀阀（毛细管）：突然减压降温',
+          body: '高压液体挤过极细的节流管，瞬间泄压跌回 9.5 atm！气压一骤降，制冷剂的沸点立刻暴跌到 5°C，温度也跟着猛降到 5°C 的低温液雾。',
+        },
+        {
+          name: '④ 室内机（蒸发器）：低压汽化吸热',
+          body: '5°C 的低温低压液体流过室内机盘管。对它来说，26°C 的室内空气简直“滚烫”！于是它疯狂沸腾汽化，吸走室内大量热量，吹出凉爽的冷风，然后变回气体回到压缩机，周而复始。',
+        },
+      ],
+    },
+    heat: {
+      title: '冬天热泵制热模式：四通阀换向，从 2°C 的冷空气里“榨热”送进 22°C 室内',
+      indoorRole: '冷凝器（放热 · 吹暖风）',
+      outdoorRole: '蒸发器（吸热 · 吹更冷的风）',
+      indoorTemp: '22°C',
+      outdoorTemp: '2°C',
+      evapT: -10, evapP: 5.8,
+      condT: 45, condP: 28,
+      compEndT: 70,
+      subCoolT: 39,
+      steps: [
+        {
+          name: '① 压缩机：加压升温',
+          body: '把从室外吸完热回来的低温低压气体（约 -6°C, 5.8 atm）压缩到 28 atm、70°C，把液化温度抬高到 45°C，远高于室内 22°C。',
+        },
+        {
+          name: '② 室内机（变身冷凝器）：高压液化放热',
+          body: '高温高压气体通过“四通阀”被改道送进室内机！45°C 的液化点远高于室内 22°C，制冷剂在室内剧烈液化，把从室外搬来的热量 + 压缩机做功的热量一起放进屋里！',
+        },
+        {
+          name: '③ 膨胀阀：突然减压降温',
+          body: '高压液体从室内流出来，经过膨胀阀急剧减压到 5.8 atm，沸点一口气暴跌到 -10°C，变成刺骨的低温低压液雾。',
+        },
+        {
+          name: '④ 室外机（变身蒸发器）：从冷空气中吸热！',
+          body: '很多人疑惑：冬天室外才 2°C，怎么还能吸热？因为减压后的制冷剂沸点低至 -10°C！对 -10°C 的冷媒来说，2°C 的冬天空气也是“热源”，足以让它沸腾汽化吸走室外热量！（这也是冬天空调外机会结霜化霜的原因）',
+        },
+      ],
+    },
+  };
+
+  function updateHpExplain() {
+    const cfg = HP_DATA[state.hpMode];
+    $('#hpDiagramTitle').textContent = cfg.title;
+    const s = cfg.steps[state.hpStep];
+    $('#hpExpTitle').innerHTML = `<strong>${s.name}</strong>`;
+    $('#hpExpBody').textContent = s.body;
+    $$('#hpSteps .step-btn').forEach((b, i) => b.classList.toggle('on', i === state.hpStep));
+  }
+
+  function drawHeatPumpMachine() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = hpMachine.clientWidth, h = hpMachine.clientHeight;
+    if (!w || !h) return;
+    if (hpMachine.width !== Math.round(w * dpr) || hpMachine.height !== Math.round(h * dpr)) {
+      hpMachine.width = Math.round(w * dpr);
+      hpMachine.height = Math.round(h * dpr);
+    }
+    const ctx = hpMCtx;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const light = isLight();
+    const cfg = HP_DATA[state.hpMode];
+    const isCool = state.hpMode === 'cool';
+
+    ctx.fillStyle = light ? '#f8fafd' : '#0b1124';
+    ctx.fillRect(0, 0, w, h);
+
+    // 左右房间分隔（左：室内，右：室外）
+    const midX = w * 0.5;
+    ctx.fillStyle = isCool
+      ? (light ? 'rgba(14,165,233,.07)' : 'rgba(56,189,248,.07)')
+      : (light ? 'rgba(244,63,94,.07)' : 'rgba(251,113,133,.08)');
+    ctx.fillRect(0, 0, midX, h);
+    ctx.fillStyle = isCool
+      ? (light ? 'rgba(249,115,22,.07)' : 'rgba(245,158,11,.07)')
+      : (light ? 'rgba(14,165,233,.07)' : 'rgba(56,189,248,.07)');
+    ctx.fillRect(midX, 0, midX, h);
+
+    ctx.save();
+    ctx.setLineDash([6, 6]);
+    ctx.strokeStyle = light ? 'rgba(30,41,59,.22)' : 'rgba(200,220,255,.18)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(midX, 12); ctx.lineTo(midX, h - 12); ctx.stroke();
+    ctx.restore();
+
+    // 室内 / 室外标题
+    ctx.font = '800 14px -apple-system,"PingFang SC",sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = light ? '#0f172a' : '#e2e8f0';
+    ctx.fillText(`室内 · ${cfg.indoorTemp}`, 16, 26);
+    ctx.textAlign = 'right';
+    ctx.fillText(`室外 · ${cfg.outdoorTemp}`, w - 16, 26);
+
+    // 四部件布局坐标
+    // 顶部中央：压缩机 (step 0)
+    // 高压放热端（冷凝器，step 1）：制冷在右(室外)，制热在左(室内)
+    // 底部中央：膨胀阀 (step 2)
+    // 低压吸热端（蒸发器，step 3）：制冷在左(室内)，制热在右(室外)
+    const comp = { x: midX, y: h * 0.20, r: Math.min(w, h) * 0.095 };
+    const valve = { x: midX, y: h * 0.80, r: Math.min(w, h) * 0.085 };
+    const leftBox = { x: w * 0.21, y: h * 0.50, w: w * 0.26, h: h * 0.34 };
+    const rightBox = { x: w * 0.79, y: h * 0.50, w: w * 0.26, h: h * 0.34 };
+    const condBox = isCool ? rightBox : leftBox;
+    const evapBox = isCool ? leftBox : rightBox;
+
+    // 4 段管路路径（按 0:压缩机出口->冷凝器, 1:冷凝器->膨胀阀, 2:膨胀阀->蒸发器, 3:蒸发器->压缩机）
+    const sgn = isCool ? 1 : -1; // 制冷顺时针(右冷凝左蒸发)，制热逆时针(左冷凝右蒸发)
+    const segs = [
+      // 高温高压气体（红）: 压缩机 -> 冷凝器顶
+      {
+        pts: [[comp.x + sgn * comp.r, comp.y], [condBox.x, comp.y], [condBox.x, condBox.y - condBox.h * 0.5]],
+        col: '#fb7185', label: `高温高压气 ${cfg.compEndT}°C`,
+      },
+      // 温热高压液体（橙）: 冷凝器底 -> 膨胀阀
+      {
+        pts: [[condBox.x, condBox.y + condBox.h * 0.5], [condBox.x, valve.y], [valve.x + sgn * valve.r, valve.y]],
+        col: '#f59e0b', label: `高压液 ${cfg.subCoolT}°C`,
+      },
+      // 低温低压液雾（深青蓝）: 膨胀阀 -> 蒸发器底
+      {
+        pts: [[valve.x - sgn * valve.r, valve.y], [evapBox.x, valve.y], [evapBox.x, evapBox.y + evapBox.h * 0.5]],
+        col: '#38bdf8', label: `低温低压液 ${cfg.evapT}°C`,
+      },
+      // 低温低压气体（浅青）: 蒸发器顶 -> 压缩机
+      {
+        pts: [[evapBox.x, evapBox.y - evapBox.h * 0.5], [evapBox.x, comp.y], [comp.x - sgn * comp.r, comp.y]],
+        col: '#22d3ee', label: `低压气 ${(cfg.evapT + 4)}°C`,
+      },
+    ];
+
+    // 画管道
+    for (const seg of segs) {
+      ctx.beginPath();
+      seg.pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
+      ctx.strokeStyle = seg.col;
+      ctx.lineWidth = 6;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    // 管道内流动粒子
+    const sampleSeg = (pts, u) => {
+      let total = 0;
+      const lens = [];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const d = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+        lens.push(d); total += d;
+      }
+      let target = u * total;
+      for (let i = 0; i < lens.length; i++) {
+        if (target <= lens[i] || i === lens.length - 1) {
+          const f = lens[i] ? target / lens[i] : 0;
+          return [lerp(pts[i][0], pts[i + 1][0], f), lerp(pts[i][1], pts[i + 1][1], f)];
+        }
+        target -= lens[i];
+      }
+      return pts[0];
+    };
+
+    const flow = (state.hpPhase * 0.45) % 1;
+    for (const seg of segs) {
+      for (let k = 0; k < 4; k++) {
+        const u = (flow + k / 4) % 1;
+        const [px, py] = sampleSeg(seg.pts, u);
+        ctx.beginPath(); ctx.arc(px, py, 3.6, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff'; ctx.fill();
+      }
+    }
+
+    // 画热交换器（冷凝器 & 蒸发器）
+    const drawExchanger = (box, title, sub, tempText, isCond, highlight) => {
+      const bx = box.x - box.w * 0.5, by = box.y - box.h * 0.5;
+      ctx.save();
+      ctx.fillStyle = isCond
+        ? (light ? '#fff1f2' : 'rgba(251,113,133,.16)')
+        : (light ? '#ecfeff' : 'rgba(34,211,238,.15)');
+      ctx.strokeStyle = highlight ? '#fbbf24' : (isCond ? '#fb7185' : '#22d3ee');
+      ctx.lineWidth = highlight ? 3.2 : 2;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx, by, box.w, box.h, 12);
+      else ctx.rect(bx, by, box.w, box.h);
+      ctx.fill(); ctx.stroke();
+
+      // 盘管波浪线
+      ctx.strokeStyle = isCond ? 'rgba(251,113,133,.55)' : 'rgba(34,211,238,.55)';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        const yy = by + 18 + i * ((box.h - 36) / 3);
+        ctx.moveTo(bx + 14, yy); ctx.lineTo(bx + box.w - 14, yy);
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = light ? '#0f172a' : '#f8fafc';
+      ctx.textAlign = 'center';
+      ctx.font = '800 14px -apple-system,"PingFang SC",sans-serif';
+      ctx.fillText(title, box.x, box.y - 8);
+      ctx.font = '700 12px -apple-system,"PingFang SC",sans-serif';
+      ctx.fillStyle = isCond ? (light ? '#be123c' : '#fda4af') : (light ? '#0e7490' : '#67e8f9');
+      ctx.fillText(sub, box.x, box.y + 12);
+      ctx.font = '700 11px "SF Mono",Menlo,monospace';
+      ctx.fillText(tempText, box.x, box.y + 30);
+
+      // 吸热 / 放热方向提示（带胶囊底色，避免与竖管交叉）
+      const heatTxt = isCond ? '▲ 向空气放出热量 ▲' : '▼ 从空气吸收热量 ▼';
+      ctx.font = '800 11px -apple-system,"PingFang SC",sans-serif';
+      const tw = ctx.measureText(heatTxt).width + 14;
+      const pyTag = by + box.h + 18;
+      ctx.fillStyle = light ? '#ffffff' : '#101830';
+      ctx.strokeStyle = isCond ? 'rgba(251,113,133,.55)' : 'rgba(34,211,238,.55)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(box.x - tw * 0.5, pyTag - 11, tw, 18, 9);
+      else ctx.rect(box.x - tw * 0.5, pyTag - 11, tw, 18);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = isCond ? (light ? '#be123c' : '#fda4af') : (light ? '#0e7490' : '#67e8f9');
+      ctx.fillText(heatTxt, box.x, pyTag + 2);
+      ctx.restore();
+    };
+
+    drawExchanger(condBox, '② 冷凝器', '高压气 → 液（放热）', `液化点 ${cfg.condT}°C · ${cfg.condP} atm`, true, state.hpStep === 1);
+    drawExchanger(evapBox, '④ 蒸发器', '低压液 → 气（吸热）', `沸点 ${cfg.evapT}°C · ${cfg.evapP} atm`, false, state.hpStep === 3);
+
+    // 画压缩机（顶中）
+    const drawNode = (pt, title, sub, col, highlight) => {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+      ctx.fillStyle = light ? '#ffffff' : '#16203d';
+      ctx.fill();
+      ctx.lineWidth = highlight ? 3.5 : 2.2;
+      ctx.strokeStyle = highlight ? '#fbbf24' : col;
+      ctx.stroke();
+      ctx.textAlign = 'center';
+      ctx.fillStyle = light ? '#0f172a' : '#f8fafc';
+      ctx.font = '800 13px -apple-system,"PingFang SC",sans-serif';
+      ctx.fillText(title, pt.x, pt.y - 2);
+      ctx.font = '700 11px -apple-system,"PingFang SC",sans-serif';
+      ctx.fillStyle = col;
+      ctx.fillText(sub, pt.x, pt.y + 14);
+      ctx.restore();
+    };
+    drawNode(comp, '① 压缩机', '耗电加压', '#fb7185', state.hpStep === 0);
+    drawNode(valve, '③ 膨胀阀', '节流降压', '#38bdf8', state.hpStep === 2);
+
+    // 底部大方向总结条（热量搬运总方向）
+    ctx.textAlign = 'center';
+    ctx.font = '800 13px -apple-system,"PingFang SC",sans-serif';
+    ctx.fillStyle = isCool ? (light ? '#0e7490' : '#67e8f9') : (light ? '#be123c' : '#fda4af');
+    const heatArrow = isCool
+      ? '热量搬运总方向：室内（26°C） ━━ 吸热 ━━▶ 压缩机加压 ━━▶ 室外（35°C）放热'
+      : '热量搬运总方向：室外（2°C） ━━ 吸热 ━━▶ 压缩机加压 ━━▶ 室内（22°C）放热';
+    ctx.fillText(heatArrow, midX, h - 10);
+  }
+
+  // 右侧：制冷循环在 P–T 相图上的 4 点闭环
+  function drawHeatPumpChart() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = hpChart.clientWidth, h = hpChart.clientHeight;
+    if (!w || !h) return;
+    if (hpChart.width !== Math.round(w * dpr) || hpChart.height !== Math.round(h * dpr)) {
+      hpChart.width = Math.round(w * dpr);
+      hpChart.height = Math.round(h * dpr);
+    }
+    const ctx = hpCCtx;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const light = isLight();
+    const cfg = HP_DATA[state.hpMode];
+
+    ctx.fillStyle = light ? '#f8fafd' : '#0b1124';
+    ctx.fillRect(0, 0, w, h);
+
+    const l = 50, r = 18, t = 20, b = 38;
+    const cw = w - l - r, ch = h - t - b;
+    const tMin = -25, tMax = 88;
+    const pMin = 2, pMax = 40;
+    const toX = T => l + clamp((T - tMin) / (tMax - tMin), 0, 1) * cw;
+    const toY = P => t + (1 - clamp((Math.log10(P) - Math.log10(pMin)) / (Math.log10(pMax) - Math.log10(pMin)), 0, 1)) * ch;
+
+    // 制冷剂沸腾线（精确通过当前模式的蒸发点 (evapT, evapP) 与冷凝点 (condT, condP)）
+    const kSlope = Math.log(cfg.condP / cfg.evapP) / (cfg.condT - cfg.evapT);
+    const pRefVap = T => cfg.evapP * Math.exp(kSlope * (T - cfg.evapT));
+    const curvePts = [];
+    for (let i = 0; i <= 48; i++) {
+      const T = lerp(-24, 65, i / 48);
+      curvePts.push([toX(T), toY(pRefVap(T))]);
+    }
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(l, t, cw, ch); ctx.clip();
+
+    // 液态区（左上）
+    ctx.beginPath();
+    ctx.moveTo(l, t);
+    ctx.lineTo(curvePts[curvePts.length - 1][0], t);
+    for (let i = curvePts.length - 1; i >= 0; i--) ctx.lineTo(curvePts[i][0], curvePts[i][1]);
+    ctx.lineTo(l, t + ch);
+    ctx.closePath();
+    ctx.fillStyle = light ? 'rgba(37,99,235,.12)' : 'rgba(59,130,246,.16)';
+    ctx.fill();
+
+    // 气态区（右下）
+    ctx.beginPath();
+    ctx.moveTo(l, t + ch);
+    for (let i = 0; i < curvePts.length; i++) ctx.lineTo(curvePts[i][0], curvePts[i][1]);
+    ctx.lineTo(l + cw, t);
+    ctx.lineTo(l + cw, t + ch);
+    ctx.closePath();
+    ctx.fillStyle = light ? 'rgba(234,88,12,.10)' : 'rgba(245,158,11,.14)';
+    ctx.fill();
+
+    // 沸腾/液化线
+    ctx.beginPath();
+    curvePts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
+    ctx.strokeStyle = light ? '#c2410c' : '#fb923c';
+    ctx.lineWidth = 2.4; ctx.stroke();
+
+    // 区域名
+    ctx.font = '800 14px -apple-system,"PingFang SC",sans-serif';
+    ctx.fillStyle = light ? 'rgba(29,78,216,.8)' : 'rgba(147,197,253,.9)';
+    ctx.textAlign = 'left';
+    ctx.fillText('液态制冷剂', l + 10, t + 24);
+    ctx.fillStyle = light ? 'rgba(194,65,12,.8)' : 'rgba(253,186,116,.9)';
+    ctx.textAlign = 'right';
+    ctx.fillText('气态制冷剂', l + cw - 10, t + ch - 12);
+
+    // 4 个循环顶点：
+    // p1: 蒸发器出口(低压过热气，在沸腾线右侧) -> p2: 压缩机出口(高温高压气)
+    // -> p3: 冷凝器出口(高压过冷液，已跨到沸腾线左侧) -> p4: 膨胀阀出口(低温低压液，在沸腾线左侧)
+    const cycle = [
+      { T: cfg.evapT + 14, P: cfg.evapP },
+      { T: cfg.compEndT, P: cfg.condP },
+      { T: cfg.condT - 16, P: cfg.condP },
+      { T: cfg.evapT - 9, P: cfg.evapP },
+    ];
+    const segCols = ['#fb7185', '#f59e0b', '#38bdf8', '#22d3ee'];
+    const segNames = ['① 压缩加压', '② 高压液化放热', '③ 节流减压', '④ 低压汽化吸热'];
+
+    for (let i = 0; i < 4; i++) {
+      const a = cycle[i], bPt = cycle[(i + 1) % 4];
+      const [x1, y1] = [toX(a.T), toY(a.P)];
+      const [x2, y2] = [toX(bPt.T), toY(bPt.P)];
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+      ctx.strokeStyle = segCols[i];
+      ctx.lineWidth = state.hpStep === i ? 4.5 : 2.6;
+      ctx.stroke();
+
+      // 标注步骤文字
+      ctx.font = state.hpStep === i ? '800 12px -apple-system,"PingFang SC",sans-serif' : '700 11px -apple-system,"PingFang SC",sans-serif';
+      ctx.fillStyle = segCols[i];
+      ctx.textAlign = 'center';
+      const mx = (x1 + x2) * 0.5, my = (y1 + y2) * 0.5;
+      const offY = i === 1 ? -10 : i === 3 ? 17 : 0;
+      const offX = i === 0 ? 34 : i === 2 ? -30 : 0;
+      ctx.fillText(segNames[i], mx + offX, my + offY);
+    }
+
+    // 标出两个跨越相界的关键点（冷凝液化点 & 蒸发沸腾点）
+    for (const [kT, kP, kTxt] of [[cfg.condT, cfg.condP, `液化 ${cfg.condT}°C`], [cfg.evapT, cfg.evapP, `沸腾 ${cfg.evapT}°C`]]) {
+      const [kx, ky] = [toX(kT), toY(kP)];
+      ctx.beginPath(); ctx.arc(kx, ky, 4.2, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.lineWidth = 1.8; ctx.strokeStyle = '#fb923c'; ctx.stroke();
+    }
+
+    // 运动光点（沿着 4 条边循环）
+    const ph = state.hpPhase % 4;
+    const si = Math.floor(ph);
+    const su = ph - si;
+    const pA = cycle[si], pB = cycle[(si + 1) % 4];
+    const curX = lerp(toX(pA.T), toX(pB.T), su);
+    const curY = lerp(toY(pA.P), toY(pB.P), su);
+    ctx.beginPath(); ctx.arc(curX, curY, 7, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = segCols[si]; ctx.stroke();
+
+    ctx.restore();
+
+    // 边框与轴标
+    ctx.strokeStyle = light ? 'rgba(20,40,80,.3)' : 'rgba(180,210,255,.28)';
+    ctx.lineWidth = 1.2; ctx.strokeRect(l, t, cw, ch);
+
+    ctx.fillStyle = light ? '#334155' : '#9fb1d1';
+    ctx.font = '600 10px "SF Mono",Menlo,monospace';
+    ctx.textAlign = 'center';
+    for (const T of [-20, 0, 20, 40, 60, 80]) {
+      ctx.fillText(`${T}°`, toX(T), t + ch + 14);
+    }
+    ctx.font = '700 11px -apple-system,"PingFang SC",sans-serif';
+    ctx.fillText('制冷剂温度 T (°C)', l + cw * 0.5, t + ch + 30);
+
+    ctx.textAlign = 'right';
+    ctx.font = '600 10px "SF Mono",Menlo,monospace';
+    for (const P of [5, 10, 20, 35]) {
+      ctx.fillText(`${P}`, l - 6, toY(P) + 4);
+    }
+    ctx.save();
+    ctx.translate(14, t + ch * 0.5);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.font = '700 11px -apple-system,"PingFang SC",sans-serif';
+    ctx.fillText('气压 (atm)', 0, 0);
+    ctx.restore();
+  }
+
+  /* ==================== 事件绑定 ==================== */
+  // 标签页切换
+  function switchTab(tab) {
+    state.tab = tab;
+    $$('.tab').forEach(b => {
+      const on = b.dataset.tab === tab;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+
+    const showExplore = tab === 'explore' || tab === 'scenes';
+    $('#view-explore').classList.toggle('on', showExplore);
+    $('#view-heatpump').classList.toggle('on', tab === 'heatpump');
+    $('#view-majors').classList.toggle('on', tab === 'majors');
+
+    $('#explorePaths').style.display = tab === 'explore' ? 'block' : 'none';
+    $('#scenesTop').style.display = tab === 'scenes' ? 'block' : 'none';
+
+    if (tab === 'scenes') {
+      selectScene(state.activeScene);
+    }
+  }
+  $$('.tab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+  // 主题切换（深色 / 浅色投影）
+  const btnTheme = $('#btnTheme');
+  function syncThemeBtn() {
+    btnTheme.textContent = isLight() ? '深色模式' : '浅色投影';
+  }
+  syncThemeBtn();
+  btnTheme.addEventListener('click', () => {
+    document.documentElement.classList.toggle('light');
+    syncThemeBtn();
+  });
+
+  // 相图拖动与点击
+  let dragging = false;
+  function moveFromPointer(e) {
+    const rect = pdCanvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+
+    // 点击靠近地标点时吸附过去，方便精准查看三相点/临界点
+    if (!dragging) {
+      for (const lm of LANDMARKS) {
+        if ((lm.id === 'melt1' || lm.id === 'boil1') && !state.show1Atm) continue;
+        const [lx, ly] = chartXY(lm.T, lm.P);
+        if (Math.hypot(cx - lx, cy - ly) < 15) {
+          stopAnim();
+          state.T = lm.T; state.P = lm.P;
+          state.trail.push({ T: state.T, P: state.P });
+          updateReadouts();
+          return;
+        }
+      }
+    }
+
+    stopAnim();
+    const [T, P] = xyToTP(cx, cy);
+    state.T = T; state.P = P;
+    state.trail.push({ T, P });
+    if (state.trail.length > 260) state.trail.shift();
+    updateReadouts();
+  }
+
+  pdCanvas.addEventListener('pointerdown', e => {
+    pdCanvas.setPointerCapture(e.pointerId);
+    moveFromPointer(e);
+    dragging = true;
+  });
+  pdCanvas.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    moveFromPointer(e);
+  });
+  pdCanvas.addEventListener('pointerup', () => { dragging = false; });
+  pdCanvas.addEventListener('pointercancel', () => { dragging = false; });
+
+  // 滑块事件
+  $('#slT').addEventListener('input', e => {
+    stopAnim();
+    state.T = normToT(Number(e.target.value) / 1000);
+    state.trail.push({ T: state.T, P: state.P });
+    if (state.trail.length > 260) state.trail.shift();
+    updateReadouts();
+  });
+  $('#slP').addEventListener('input', e => {
+    stopAnim();
+    state.P = normToP(Number(e.target.value) / 1000);
+    state.trail.push({ T: state.T, P: state.P });
+    if (state.trail.length > 260) state.trail.shift();
+    updateReadouts();
+  });
+
+  // 辅助线开关
+  $('#tog1atm').addEventListener('click', e => {
+    state.show1Atm = !state.show1Atm;
+    e.currentTarget.classList.toggle('on', state.show1Atm);
+  });
+  $('#togNormal').addEventListener('click', e => {
+    state.showNormalMelt = !state.showNormalMelt;
+    e.currentTarget.classList.toggle('on', state.showNormalMelt);
+  });
+  $('#btnClearTrail').addEventListener('click', () => { state.trail = []; });
+
+  // 快捷路线按钮
+  $$('.path-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.path;
+      playPath(QUICK_PATHS[key], 4.2, true);
+      btn.classList.add('playing');
+    });
+  });
+
+  // 热泵页按钮
+  $('#hpCool').addEventListener('click', () => {
+    state.hpMode = 'cool';
+    $('#hpCool').classList.add('on');
+    $('#hpHeat').classList.remove('on');
+    updateHpExplain();
+  });
+  $('#hpHeat').addEventListener('click', () => {
+    state.hpMode = 'heat';
+    $('#hpHeat').classList.add('on');
+    $('#hpCool').classList.remove('on');
+    updateHpExplain();
+  });
+  $('#hpPlay').addEventListener('click', e => {
+    state.hpPlaying = !state.hpPlaying;
+    e.currentTarget.textContent = state.hpPlaying ? '暂停动画' : '继续播放';
+    e.currentTarget.classList.toggle('on', state.hpPlaying);
+  });
+  $$('#hpSteps .step-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.hpStep = Number(btn.dataset.step);
+      state.hpPhase = state.hpStep + 0.15;
+      updateHpExplain();
+    });
+  });
+
+  /* ==================== 主渲染循环 ==================== */
+  let lastTs = performance.now();
+  function frame(ts) {
+    const dt = Math.min((ts - lastTs) / 1000, 0.05);
+    lastTs = ts;
+
+    if (state.tab === 'explore' || state.tab === 'scenes') {
+      stepAnim(dt);
+      drawPhaseDiagram();
+      stepAndDrawPiston(dt);
+    } else if (state.tab === 'heatpump') {
+      if (state.hpPlaying) {
+        state.hpPhase = (state.hpPhase + dt * 0.55) % 4;
+        const autoStep = Math.floor(state.hpPhase);
+        if (autoStep !== state.hpStep) {
+          state.hpStep = autoStep;
+          updateHpExplain();
+        }
+      }
+      drawHeatPumpMachine();
+      drawHeatPumpChart();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ==================== 初始化 ==================== */
+  buildSceneCards();
+  updateReadouts();
+  updateHpExplain();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
